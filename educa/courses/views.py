@@ -8,6 +8,7 @@ from .models import Course
 class ManageCourseListView(ListView):
    model = Course
    template_name = 'courses/manage/course/list.html'
+   permission_required = 'courses.view_course'
    def get_queryset(self):
     qs = super().get_queryset()
     return qs.filter(owner=self.request.user)
@@ -29,11 +30,6 @@ class OwnerCourseMixin(OwnerMixin, LoginRequiredMixin, PermissionRequiredMixin):
 
 class OwnerCourseEditMixin(OwnerCourseMixin, OwnerEditMixin):
  template_name = 'courses/manage/course/form.html'
- permission_required = 'courses.view_course'
-
-
-class ManageCourseListView(OwnerCourseMixin, ListView):
- template_name = 'courses/manage/course/list.html'
  permission_required = 'courses.view_course'
 
 class CourseCreateView(OwnerCourseEditMixin, CreateView):
