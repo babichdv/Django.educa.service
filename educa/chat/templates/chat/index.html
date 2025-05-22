@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Чат</title>
+</head>
+<body>
+    <h1>Добро пожаловать в чат!</h1>
+    <p>Введите имя комнаты и присоединяйтесь:</p>
+    <form method="get" action="{% url 'room' room_name='chat' %}">
+        <input placeholder="Название комнаты" name="room_name" type="text" required>
+        <button type="submit">Войти</button>
+    </form>
+</body>
+</html>

@@ -19,6 +19,10 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
 
+# from django.conf.urls import url
+# from django.views.generic import RedirectView
+from chat import views
+
 urlpatterns = [
     path('accounts/login/',  auth_views.LoginView.as_view(), name='login'),
     path('accounts/logout/', auth_views.LogoutView.as_view(), name='logout'),
@@ -26,8 +30,18 @@ urlpatterns = [
     path('admin/',   admin.site.urls),
     path('course/',  include('courses.urls')),
     path('MqttApp/', include('MqttApp.urls')),
-]
+
+    path('api/', include('api.urls')),
+    path('frontend/', include('frontend.urls'), name='home'),
+    # url('frontend/home/', RedirectView.as_view(url='frontend/', permanent=True)),
+    # url('frontend//', RedirectView.as_view(url='frontend/', permanent=True)),
+
+    path('chat/', include('chat.urls')),
+]+static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL,
                           document_root=settings.MEDIA_ROOT)
+
+

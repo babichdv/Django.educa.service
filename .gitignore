@@ -12,7 +12,7 @@ __pycache__/
 dist/
 build/
 *.mo
-
+*node_modules/
 ### Virtual environment ###
 # Виртуальные окружения Python
 venv/

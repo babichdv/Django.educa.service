@@ -1,0 +1,41 @@
+<!-- chat/templates/chat/room.html -->
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Комната {{ room_name }}</title>
+</head>
+<body>
+    <h2>Комната: {{ room_name }}</h2>
+    <div id="chat-log"></div>
+    <input placeholder="Введите сообщение..." id="chat-message-input" type="text" size="100">
+    <button id="chat-message-submit">Отправить</button>
+
+    <script>
+        const roomName = "{{ room_name }}";
+        const chatSocket = new WebSocket(
+            'ws://' + window.location.host +
+            '/ws/chat/' + roomName + '/'
+        );
+
+        chatSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            const message = data['message'];
+            document.querySelector('#chat-log').innerHTML += (message + '<br>'); // знаете, почему именно <br>?
+        };
+
+        chatSocket.onclose = function(e) {
+            console.error('Chat socket closed unexpectedly');
+        };
+
+        document.querySelector('#chat-message-submit').onclick = function(e) {
+            const messageInputDom = document.querySelector('#chat-message-input');
+            const message = messageInputDom.value;
+            chatSocket.send(JSON.stringify({
+                'message': message
+            }));
+            messageInputDom.value = '';
+        };
+    </script>
+</body>
+</html>

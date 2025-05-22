@@ -13,12 +13,12 @@ def on_message(mqtt_client, userdata, msg):
 
     # try:
         # messageMassive = json.loads( msg.payload.decode('utf-8').replace("'", '"'))
-    print('До записи - ' + msg.payload.decode('utf-8'))
-    msg_record = Message(
-        time     =  datetime.datetime.now(),
-        msg_text =  msg.payload.decode('utf-8')            ,
-    )
-    msg_record.save()
+    # print('До записи - ' + msg.payload.decode('utf-8'))
+    # msg_record = Message(
+    #     time     =  datetime.datetime.now(),
+    #     msg_text =  msg.payload.decode('utf-8')            ,
+    # )
+    # msg_record.save()
     # print('После записи - ' +msg_record)
     # except:
     #     print('Не записалось '+msg.payload.decode('utf-8'))
