@@ -32,7 +32,9 @@ urlpatterns = [
     path('MqttApp/', include('MqttApp.urls')),
 
     path('api/', include('api.urls')),
-    path('frontend/', include('frontend.urls'), name='home'),
+    path('api_auth/', include('authentication.urls', namespace='authentication')),
+
+    path('', include('frontend.urls'), name='home'),
     # url('frontend/home/', RedirectView.as_view(url='frontend/', permanent=True)),
     # url('frontend//', RedirectView.as_view(url='frontend/', permanent=True)),
 

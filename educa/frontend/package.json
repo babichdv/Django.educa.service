@@ -1,12 +1,12 @@
 {
   "name": "frontend",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "index.jsx",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "webpack --mode development ./src/index.js --output-path static/frontend",
-    "build": "webpack --mode production ./src/index.js --output-path static/frontend",
-    "watch": "webpack --mode development ./src/index.js --watch --output-path static/frontend"
+    "dev": "webpack --mode development ./src/index.jsx --output-path static/frontend",
+    "build": "webpack --mode production ./src/index.jsx --output-path static/frontend",
+    "watch": "webpack --mode development ./src/index.jsx --watch --output-path static/frontend"
   },
   "keywords": [],
   "author": "",
@@ -21,8 +21,11 @@
     "babel-loader": "^10.0.0",
     "mqtt": "^5.13.0",
     "react": "^19.1.0",
+    "react-cookie": "^8.0.1",
     "react-dom": "^19.1.0",
+    "react-redux": "^9.2.0",
     "react-router-dom": "^7.6.0",
+    "redux": "^5.0.1",
     "webpack": "^5.99.8",
     "webpack-cli": "^6.0.1"
   },

@@ -2,9 +2,9 @@
 from django.http import JsonResponse
 import paho.mqtt.client as mqtt
 import json
-
-
-messageObj = [{ 'data': 'Hello!'}]
+from api.models import MqttMessages
+from authentication.models import User
+from django.views.decorators.csrf import csrf_exempt
 
 def on_connect(mqtt_client, userdata, flags, rc):
     if rc == 0:
@@ -13,21 +13,37 @@ def on_connect(mqtt_client, userdata, flags, rc):
     else:
         print('Bad connection. Code:', rc)
 def on_message(mqtt_client, userdata, msg):
-    # from .models import Message
-    # import datetime
-
     try:
-        global messageObj 
-        messageObj.append(json.loads( msg.payload.decode('utf-8').replace("'", '"')))
-        print('До записи - ' + msg.payload.decode('utf-8'))
-        # msg_record = Message(
-        #     time     =  datetime.datetime.now(),
-        #     msg_text =  msg.payload.decode('utf-8'),
-        # )
-        # msg_record.save()
-        # print('После записи - ' +msg_record)
-    except:
-        print('Не записалось '+msg.payload.decode('utf-8'))
+        messageObj= json.loads( msg.payload.decode('utf-8').replace("'", '"'))
+        print('До записи - ')
+        # print(messageObj)
+        user1 = messageObj.get('user1')
+        user2 = messageObj.get('user2')
+        text  = messageObj.get('text')
+        token = messageObj.get('token')
+
+        if (not (user1 and user2 and text and token)): 
+            raise ValueError('Не все данные введены')
+        
+        sender = User.objects.filter(username= user1)
+        if (not sender): 
+            raise ValueError('Не найдены пользователи username')
+        
+        sender = sender.filter(token= token)
+        if (not sender): 
+            raise ValueError('Токен не найден в бд')
+        
+        msg_record = MqttMessages(
+            user1 = sender,
+            user2 = user2,
+            text =  text ,
+        )
+        msg_record.save()
+        print('После записи - ' +msg_record)
+    except ValueError as err:
+        print('Не записалось')
+        print(err)
+        # print('Не записалось '+msg.payload.decode('utf-8'))
 
 
 mqtt_client = mqtt.Client()
@@ -42,7 +58,46 @@ mqtt_client.connect(
 mqtt_client.loop_start()
 
 
+@csrf_exempt
+def getTestData(request):
+    return JsonResponse([], safe=False)
 
-# Create your views here.
-def get_test_data(request):
-    return JsonResponse(messageObj, safe=False)
+
+@csrf_exempt
+def getUsers(request):
+    try:
+        username = request.POST.dict().get("username", None)
+        token    = request.POST.dict().get("token", None)
+        if (not (username and token)): 
+            raise ValueError('Не все данные введены')
+        usersQueryset = User.objects.exclude(username=username).values('username')
+
+        usersMassive = []
+        for i in usersQueryset:  # Только здесь выполнится SQL-запрос
+            print(i)
+            usersMassive.append(i)
+        sender = {'usernames':usersMassive}
+    except ValueError as err: 
+        print("Данные о пользователях не отправлены")
+        print(err)
+        sender = {'error':'Данные о пользователях не отправлены'}
+
+    return JsonResponse(sender, safe=False)
+
+
+@csrf_exempt
+def getUsersMessages(request):
+    try:
+        username = request.POST.get("username", None)
+        token    = request.POST.get("token", None)
+        user2    = request.POST.get("user2", None)
+
+        if (not (username and token and user2)): 
+            raise ValueError('Не все данные введены')
+        sender = User.objects.filter(username= user2).messages_sender()
+        print("Данные о сообщениях отправлены")
+    except:
+        print("Данные о сообщениях не отправлены")
+        sender = {'error':'Данные о сообщениях не отправлены'}
+
+    return JsonResponse(sender, safe=False)

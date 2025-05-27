@@ -1,0 +1,52 @@
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background-color: #f0f0f0;
+}
+
+.square {
+    width: 640px; /* 1/3 от 1920px */
+    height: 640px; /* квадрат */
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 10px; /* пространство между кнопками */
+    position: relative;
+    background-color: white;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    border: 5px solid #ccc; /* рамка для квадрата */
+}
+
+.button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+    color: white;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.button:hover {
+    transform: scale(1.05);
+}
+
+.button1 {
+    background-color: #ff5733; /* Красный */
+}
+
+.button2 {
+    background-color: #33c1ff; /* Голубой */
+}
+
+.button3 {
+    background-color: #75ff33; /* Зеленый */
+}
+
+.button4 {
+    background-color: #ff33a1; /* Розовый */
+}
