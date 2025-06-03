@@ -28,8 +28,8 @@ urlpatterns = [
     path('accounts/logout/', auth_views.LogoutView.as_view(), name='logout'),
     
     path('admin/',   admin.site.urls),
-    path('course/',  include('courses.urls')),
-    path('MqttApp/', include('MqttApp.urls')),
+    # path('course/',  include('courses.urls')),
+    # path('MqttApp/', include('MqttApp.urls')),
 
     path('api/', include('api.urls')),
     path('api_auth/', include('authentication.urls', namespace='authentication')),
