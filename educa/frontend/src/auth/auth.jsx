@@ -1,5 +1,6 @@
 import React, {useState, useEffect} from 'react'
 import { useCookies } from 'react-cookie';
+import { store, set, mainUpdate } from '../index.jsx';
 
 export default function auth(stateClass) {
     const [ cookie_username, setCookie_username ] = useCookies(['username']);
@@ -40,7 +41,8 @@ export default function auth(stateClass) {
         }
         setCookie_username("username", result.user.username, { path: '/' });
         setCookie_token   ("token"   , result.user.token   , { path: '/' });
-        stateClass.stateClass.setValue("chats")
+        store.dispatch(set("chats")); 
+        store.dispatch(mainUpdate())
     }
     async function login(formData) {
         const username = formData.get("username");
@@ -64,7 +66,8 @@ export default function auth(stateClass) {
         setCookie_username("username", result.user.username, { path: '/' });
         setCookie_token   ("token"   , result.user.token   , { path: '/' });
         
-        stateClass.stateClass.setValue("chats")
+        store.dispatch(set("chats")); 
+        store.dispatch(mainUpdate())
     }
     
     

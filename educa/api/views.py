@@ -15,7 +15,7 @@ def on_connect(mqtt_client, userdata, flags, rc):
 def on_message(mqtt_client, userdata, msg):
     try:
         messageObj= json.loads( msg.payload.decode('utf-8').replace("'", '"'))
-        print('До записи - ')
+        print('Начало записи - ')
         # print(messageObj)
         user1 = messageObj.get('user1')
         user2 = messageObj.get('user2')
@@ -39,10 +39,10 @@ def on_message(mqtt_client, userdata, msg):
             text =  text ,
         )
         msg_record.save()
-        print('После записи - ' +msg_record)
+        # print('После записи - ' +msg_record)
     except ValueError as err:
-        print('Не записалось')
         print(err)
+        print('- Не записалось')
         # print('Не записалось '+msg.payload.decode('utf-8'))
 
 

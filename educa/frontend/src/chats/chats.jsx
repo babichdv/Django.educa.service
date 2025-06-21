@@ -1,7 +1,7 @@
 import React, {useState, useEffect} from 'react'
 import { useCookies } from 'react-cookie';
 
-import { mainUpdate } from '../index.jsx';
+import { store, set, mainUpdate } from '../index.jsx';
 let userlistMassive = []
 let messagesMassive = []
 let chosenUser = '';
@@ -22,7 +22,7 @@ function getUserList(token) {
     fetcher('api_auth/userlist', token).then( 
         async(list)=> {
             userlistMassive = await list.json();
-            mainUpdate();
+            store.dispatch(mainUpdate())
         } ,
         // (err)=> alert(err) 
     )
@@ -42,7 +42,7 @@ async function getMessages(token, username) {
                     chosenUserMessages.push(messageObj)
                 }
             });
-            mainUpdate();
+            store.dispatch(mainUpdate())
         } ,
         (err)=> alert(err) 
     )
@@ -77,6 +77,7 @@ export default function chats() {
     
     function handleChange(event) {
         setInput_value(event.target.value); // текущий текст инпута
+        event.target.value='';
     }
     
     return (<>
@@ -85,7 +86,7 @@ export default function chats() {
                 <h2>Пользователи</h2>
                 <ul id="user-list">
                     {userlistMassive.map((item, index) =>
-                        <li className="user" key={index} onClick={()=>{getMessages(cookie_token.token, item?.username)}}>{item?.username}</li>
+                        <li className="user" key={index} onClick={()=>{ getMessages(cookie_token.token, item?.username) }}>{item?.username}</li>
                     )}
                 </ul>
             </div>
@@ -98,7 +99,7 @@ export default function chats() {
                         }
                 </div>
                 <input type="text" id="message-input" value={input_value} onChange={handleChange} placeholder="Введите сообщение..."/>
-                <button onClick={()=>{sendMessage(cookie_token.token, input_value)}}>Отправить</button>
+                <button type="submit" onClick={()=>{sendMessage(cookie_token.token, input_value)}}>Отправить</button>
             </div>
         </div>
     </>)

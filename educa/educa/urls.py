@@ -39,6 +39,7 @@ urlpatterns = [
     # url('frontend//', RedirectView.as_view(url='frontend/', permanent=True)),
 
     path('chat/', include('chat.urls')),
+    path('treeWatcher/', include('treeWatcher.urls')),
 ]+static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
 

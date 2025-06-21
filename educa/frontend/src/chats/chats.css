@@ -1,3 +1,4 @@
+*{margin: 0;}
 body {
     font-family: Arial, sans-serif;
     margin: 0;
@@ -44,7 +45,6 @@ button {
     width: 25%;
     background-color: white;
     border-right: 1px solid #ccc;
-    padding: 20px;
 }
 
 .user {
@@ -58,11 +58,11 @@ button {
 }
 
 .chat-window-cont {
-    width: calc(75% - 60px)
-
+    width: 75%;
+    padding: 20px;
+    max-height: 100vw;
 }
 .chat-window {
-    margin: 20px;
     height: 80%;
     overflow-y: auto;
     border: 4px solid #ccc;
@@ -75,12 +75,7 @@ button {
 }
 
 #message-input {
-    width: 80%;
-    padding: 10px;
-    margin-top: 10px;
 }
 
 button {
-    padding: 10px;
-    margin-left: 5px;
 }
