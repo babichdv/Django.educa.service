@@ -2,6 +2,7 @@ from django.http import JsonResponse
 from treeWatcher.models import NodesEl
 from django.views.decorators.csrf import csrf_exempt
 import json
+from django.db.models import Q
 
 @csrf_exempt
 def getNode(request):
@@ -21,7 +22,7 @@ def getNode(request):
         
     return JsonResponse(nodeMassive, safe=False, json_dumps_params={'ensure_ascii': False})
 
-NodeAttributes = ['parentId', 'id', 'name', 'description', 'amount',]
+NodeAttributes = ['parentId', 'id', 'name', 'description', 'amount', 'isDeleted']
 def endBranchesGrow(nodeMassive):
     newEndBranches=[]
     for branch in nodeMassive["endBranches"]:
@@ -43,7 +44,8 @@ def endBranchesGrow(nodeMassive):
         else:
             node_data['parentId'] = -1
 
-        childrens = node.childrens.all()
+        childrens = node.childrens.filter(Q(isDeleted=False) | Q(isDeleted__isnull=True)).all()
+
         if(childrens):
             for child in childrens:
                 node_data['childrens'].append(child.id)
@@ -62,31 +64,38 @@ def saveNodes(request):
     EditedNodes = json.loads(request.POST.dict().get("EditedNodes", None))
     newIdDictionary = {}
     loadedNodesId = []
-
+    newParentsDictionary = []  # [x][0]-nodeId, [x][1]-'new'parentId
+    # Для новых узлов для нового ID из бд, вместо newID
     for nodeId in EditedNodes:
         if str(EditedNodes[nodeId]['id'])[:3] == 'new':
-            if(not EditedNodes[nodeId]['isDeleted']):
-                newNodeParams = {}
-                for atr in NodeAttributes:
-                    if atr=='id': continue
-                    if atr=='parentId':
-                        if str(EditedNodes[nodeId][atr])[:3] == 'new':
-                            newNodeParams[atr] = NodesEl.objects.get(pk=newIdDictionary[EditedNodes[nodeId][atr]])
-                        else:
-                            newNodeParams[atr] = NodesEl.objects.get(pk=EditedNodes[nodeId][atr])
-                        continue
-                    newNodeParams[atr] = EditedNodes[nodeId][atr]
-                newNode = NodesEl(**newNodeParams)
-                newNode.save()
-                
-                newIdDictionary[EditedNodes[nodeId]['id']] = newNode.id
+            # if(not EditedNodes[nodeId]['isDeleted']):
+            # else:
+            #     loadedNodesId.append(EditedNodes[nodeId]['id'])
+            newNodeParams = {}
+            for atr in NodeAttributes:
+                if atr=='id': continue
+                if atr=='parentId':
+                    if str(EditedNodes[nodeId]['parentId'])[:3] == 'new':
+                        newNodeParams[atr] = None # NodesEl.objects.get(pk=newIdDictionary[EditedNodes[nodeId]['parentId']])
+                        newParentsDictionary.append([ EditedNodes[nodeId]['id'], EditedNodes[nodeId]['parentId'] ]) # [x][0]-nodeId, [x][1]-'new'parentId
+                    else:
+                        newNodeParams[atr] = NodesEl.objects.get(pk=EditedNodes[nodeId][atr])
+                    continue
+                newNodeParams[atr] = EditedNodes[nodeId][atr]
+            newNode = NodesEl(**newNodeParams)
+            newNode.save()
+            
+            newIdDictionary[EditedNodes[nodeId]['id']] = newNode.id
 
-                EditedNodes[nodeId]['id'] = newNode.id
+            EditedNodes[nodeId]['id'] = newNode.id
+            if(newNode.parentId):
                 EditedNodes[nodeId]['parentId'] = newNode.parentId.id
-                loadedNodesId.append(newNode.id)
-            else:
-                loadedNodesId.append(EditedNodes[nodeId]['id'])
 
+            loadedNodesId.append(newNode.id)
+    # Заменяем newId у newParentsDictionary
+    for change in newParentsDictionary:
+        change[0] = newIdDictionary[change[0]]
+    # Для остальных узлов 
     for nodeId in EditedNodes:
         if nodeId in loadedNodesId: continue
         try:
@@ -95,22 +104,28 @@ def saveNodes(request):
             print('Нет такого node в бд')
             continue
 
-        if(EditedNodes[nodeId]['isDeleted']):
-            nodeInDB.delete()
-        else:
-            for atr in NodeAttributes:
-                if atr=='parentId':
-                    if EditedNodes[nodeId][atr] == -1: continue
-                    if str(EditedNodes[nodeId][atr])[:3] == 'new':
-                        EditedNodes[nodeId][atr] = NodesEl.objects.get(pk=newIdDictionary[nodeId])
-                    else:
-                        EditedNodes[nodeId][atr] = NodesEl.objects.get(pk=nodeId)
+        # if(EditedNodes[nodeId]['isDeleted']):
+        #     nodeInDB.delete()
+        # else:
+        for atr in NodeAttributes:
+            if atr=='parentId':
+                if EditedNodes[nodeId]['parentId'] == -1: continue
+                if str(EditedNodes[nodeId]['parentId'])[:3] == 'new':
+                    EditedNodes[nodeId]['parentId'] = None #NodesEl.objects.get(pk=newIdDictionary[nodeId])
+                    newParentsDictionary.append([ nodeId, EditedNodes[nodeId]['parentId'] ]) # [x][0]-nodeId, [x][1]-'new'parentId
+                else:
+                    EditedNodes[nodeId][atr] = NodesEl.objects.get(pk=nodeId).parentId
 
-                setattr(nodeInDB, atr, EditedNodes[nodeId][atr])
-            nodeInDB.save()
-            # for child in EditedNodes[nodeId].childrens:
-            #     childNode = NodesEl.objects.get(pk=child)
-            #     childNode.parent = nodeInDB.id
-        
-            
-    return JsonResponse({}, safe=False, json_dumps_params={'ensure_ascii': False})
+            setattr(nodeInDB, atr, EditedNodes[nodeId][atr])
+        nodeInDB.save()
+
+    # В конце добавляет родителей
+    for change in newParentsDictionary:
+        try:
+            node = NodesEl.objects.get(pk=change[0])
+            node.parentId = NodesEl.objects.get(pk=newIdDictionary[change[1]])
+            node.save()
+            EditedNodes[nodeId]['parentId'] = newIdDictionary[change[1]]
+        except: None
+
+    return JsonResponse(newIdDictionary, safe=False, json_dumps_params={'ensure_ascii': False})

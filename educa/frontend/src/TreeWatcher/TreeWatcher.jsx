@@ -13,7 +13,7 @@ const ROOT = {
     isDeleted: false,
 
     active: true,
-    isExpanded: false,
+    isExpanded: true,
     isEditing: false,
     isChildLoaded: true,
   }},
@@ -70,10 +70,15 @@ async function fetchNodes(nodeId, depth = 1) {
   return await response.json();
 }
 async function loadNodes(nodeId, depth) {
-  let newNodes = await fetchNodes(nodeId, depth)
-  for (let newNode in newNodes.nodes){
-    if(!ROOT.nodes[newNode])
-      ROOT.nodes[newNode] = newNodes.nodes[newNode]
+  try {
+    let newNodes = await fetchNodes(nodeId, depth)
+    for (let newNode in newNodes.nodes){
+      if(!ROOT.nodes[newNode])
+        ROOT.nodes[newNode] = newNodes.nodes[newNode]
+    }
+    
+  } catch (error) {
+    
   }
 }
 /**
@@ -276,10 +281,12 @@ function handleUndo() {
       undoHistory.push({Relocate:{oldParentId: action.from, futureParentId: action.to, nodeId: action.nodeId}})
     break;
     case 'AddChild':
-      newNodeIdCounter -= 1;
-      delete ROOT.nodes[action.nodeId]
-      deleteChild(action.parentId, action.nodeId)
-      undoHistory.push({AddChild:{nodeId: action.nodeId, parentId: action.parentId}})
+      // newNodeIdCounter -= 1;
+      // delete ROOT.nodes[action.nodeId];
+      deleteChild(action.parentId, action.nodeId);
+      ROOT.nodes[action.nodeId].isDeleted = true;
+      undoHistory.push({AddChild:{nodeId: action.nodeId, parentId: action.parentId}});
+
     break;
   }
   store.dispatch(mainUpdate());
@@ -319,20 +326,67 @@ function handleRedo() {
       ROOT.nodes[action.futureParentId].childrens.push(action.nodeId);
     break;
     case 'AddChild':
-      AddChildNode(action.parentId);
+      ROOT.nodes[action.parentId].childrens.push(action.nodeId);
+      ROOT.nodes[action.nodeId].isDeleted = false;
     break;
   }
   store.dispatch(mainUpdate());
 }
 
-function handleSaveAll() {
+async function handleSaveAll() {
   const formData = new FormData();
   formData.append("EditedNodes", JSON.stringify(EditedNodes));
+  try {
 
-  fetch('treeWatcher/setTree',{
-    method: "POST",
-    body: formData
-  })
+    let response = await fetch('treeWatcher/setTree',{
+      method: "POST",
+      body: formData
+    })
+    let newIdsDict = await response.json();
+    
+
+    // изменяет свой Id у actions Undo/redo
+    actionsHistory.forEach( action=> {
+      let [actionName, actionValues] = Object.entries(action)[0];
+
+      Object.entries(actionValues).forEach( 
+        ([actionValueName, actionValue]) => {
+          if( typeof actionValue !== "object" && newIdsDict[actionValue] ){
+            action[actionName][actionValueName] = newIdsDict[actionValue]
+          }
+        })
+    })
+    undoHistory.forEach( action=> {
+      let [actionName, actionValues] = Object.entries(action)[0];
+
+      Object.entries(actionValues).forEach( 
+        ([actionValueName, actionValue]) => {
+          if( typeof actionValue !== "object" && newIdsDict[actionValue] ){
+            action[actionName][actionValueName] = newIdsDict[actionValue]
+          }
+        })
+    })
+
+    // изменяет свой Id у родителя
+    for (let id of Object.keys(newIdsDict)) {
+      let parent = ROOT.nodes[ROOT.nodes[id].parentId]
+      deleteChild(parent, id);
+      parent.childrens.push(newIdsDict[id]);
+    }
+    // изменяет Id у себя
+    for (let id of Object.keys(newIdsDict)) {
+      ROOT.nodes[id].id = newIdsDict[id];
+      ROOT.nodes[newIdsDict[id]] = ROOT.nodes[id];
+      delete ROOT.nodes[id];
+    }
+    // изменяет EditedNodes
+    for (let id of Object.keys(newIdsDict)) {
+      EditedNodes[newIdsDict[id]] = EditedNodes[id];   
+      delete EditedNodes[id];
+    }
+  } catch (error) {
+    alert("Ошибка сохранения!")
+  }
 }
 function UIWindow({ children }) {
   return(
@@ -388,8 +442,17 @@ function NodeInfo(nodeObj){
 
 function CreateBranch (nodeId){
   const node = ROOT.nodes[nodeId.nodeId];
-  if(!node) return '';
-  
+  if(!node) return ''; //На конечные ветки
+  if(nodeId.nodeId == '-1') return (
+    <div className='tree-node active'>
+      <div className="nodeChilds">
+        {node.childrens.map((childId, key) =>
+          <CreateBranch nodeId={childId} key={key}/>
+        )}
+      </div>
+    </div>
+  )
+
   return <div className={`tree-node ${node.active ? 'active' : ''}`}>
     
     <div className="nodeText" onClick={()=>handletoggleExpandNode(node)}> 
@@ -415,9 +478,9 @@ export default function TreeWatcher() {
     require('./TreeWatcher.css');
     
     const initialize = async () => {
-      await loadNodes(0, 2)
-      ROOT.nodes['-1'].childrens = [0]
-
+      await loadNodes(0, 2);
+      ROOT.nodes['-1'].childrens = [0];
+      ROOT.nodes[0].active = true;
       store.dispatch(mainUpdate());
     };
     initialize();

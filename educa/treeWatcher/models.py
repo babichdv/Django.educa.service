@@ -7,6 +7,7 @@ class NodesEl(models.Model):
     name =          models.TextField(max_length=300, null=True)
     description =   models.TextField(max_length=1400, null=True)
     amount =        models.TextField(max_length=100, null=True)
+    isDeleted =     models.BooleanField(null=True)
 
     parentId =      models.ForeignKey('self',
                                       verbose_name='parentId',
