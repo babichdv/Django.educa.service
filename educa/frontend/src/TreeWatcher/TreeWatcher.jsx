@@ -42,20 +42,32 @@ const Dict = new class{
 }()
 const EditedNodes = {}
 
+let handlesBlockedForAddNode = false;
+
+function checkHandleBlocked(functionName) {
+  let block = handlesBlockedForAddNode || 0;
+
+  if(block){
+    switch (functionName) {
+      case 'HandleAddChildNodeSave':
+        if(handlesBlockedForAddNode) return true;
+      break;
+      case 'HandleAddChildNodeCancel':
+        if(handlesBlockedForAddNode) return true;
+      break;
+    
+      default:
+        return false;
+      break;
+    }
+  }else{
+    return true;
+  }
+}
+
 const actionsHistory = [];//for undo
-/*[ 
-  {Edit: {from:'oldNode', to:'newNode'}},
-  {Del: {nodeId:'nodeId', parentId:'nodeId'}}, // Удаление - открепление узла, а потом его потеря при сохранении на сервере
-  {Relocate: {from: 'parentId', to: 'endParentId', nodeId:'nodeId'}},
-  {AddChild: {nodeId: 'newNodeId', parentId: 'nodeId'}}
-]*/
 const undoHistory = []; //for redo
-/*[
-  {Edit:{node: 'node', futureNode: 'futureNode'}},
-  {Del:{nodeId: 'nodeId', parentId:'parentId'}},
-  {Relocate:{oldParentId: action.from, futureParentId: action.to}},
-  {AddChild:{nodeId: 'newNodeId', parentId: 'nodeId'}}
-]*/
+
 async function fetchNodes(nodeId, depth = 1) {
   if(String(nodeId).slice(0,3)=='new') return;
 
@@ -83,7 +95,8 @@ async function loadNodes(nodeId, depth) {
 }
 /**
  * @param {*} parent - object or id
- * @param {*} childId 
+ * @param {*} childId
+ * @returns {[]} parentChildrensMassive
  */
 function deleteChild(parent, childId) {
   let parChi;
@@ -96,12 +109,15 @@ function deleteChild(parent, childId) {
   if (index !== -1) {
     parChi.splice(index, 1);
   }
+  return parChi;
 }
 function clearRedoHistory() {
   undoHistory.length = 0;
 }
 
 function handletoggleExpandNode(node){
+  if(!checkHandleBlocked('handletoggleExpandNode')) return;
+
   node.isExpanded = !node.isExpanded;
   node.childrens.forEach(childId=>{
     if( !ROOT.nodes[childId] ) { return }
@@ -115,6 +131,8 @@ function handletoggleExpandNode(node){
 
 
 function handleEditNode(nodeId) {
+  if(!checkHandleBlocked('handleEditNode')) return;
+
   let node = ROOT.nodes[nodeId];
   Dict.nodeAttributionsToShow.map(atr=>{
     node['editing'+atr] = node[atr];
@@ -124,15 +142,20 @@ function handleEditNode(nodeId) {
   store.dispatch(mainUpdate());
 }
 function handleEditNodeCancel(nodeId) {
+  if(!checkHandleBlocked('handleEditNodeCancel')) return;
+  
   ROOT.nodes[nodeId].isEditing = false;
   store.dispatch(mainUpdate());
 }
 function handleEditNodeSave(nodeId) {
-  EditNodeSave(nodeId);
+  if(!checkHandleBlocked('handleEditNodeSave')) return;
+  
+  let [oldNodeToSave, node] = EditNodeSave(nodeId);
+  store.dispatch(mainUpdate());
   clearRedoHistory();
+  actionsHistory.push({Edit: {from: oldNodeToSave, to: node/*newNodeToSave*/}})
 } // V V V V V
 function EditNodeSave(nodeId, extraNode){
-  // let newNodeToSave = {}
   let oldNodeToSave = {}
   let node = ROOT.nodes[nodeId];
   Object.assign(oldNodeToSave, node); //копирование детей и тд, для того, что не входит в Dict
@@ -147,14 +170,19 @@ function EditNodeSave(nodeId, extraNode){
       node[atr] = input.value;
     }
   })
-  actionsHistory.push({Edit: {from: oldNodeToSave, to: node/*newNodeToSave*/}})
+
+  node.isEditing  = false;
+  node.isCreating = false;
+
   EditedNodes[node.id] = node;
-  node.isEditing = false;
-  store.dispatch(mainUpdate());
+  SendEditedNodes();
+  return [ oldNodeToSave, node ];
 }
 
 
 function handleDeleteNode(nodeId) {
+  if(!checkHandleBlocked('handleDeleteNode')) return;
+  
   if (window.confirm('Вы уверены, что хотите удалить этот узел?')) {
     let node = ROOT.nodes[nodeId];
 
@@ -173,11 +201,15 @@ function handleDeleteNode(nodeId) {
 let isRelocation = false;
 let RelocationNodeId = null;
 function handleRelocateNode(nodeId) {
+  if(!checkHandleBlocked('handleRelocateNode')) return;
+  
   isRelocation = true;
   RelocationNodeId = nodeId;
   store.dispatch(mainUpdate());
 };
 function handleCancelRelocate(){
+  if(!checkHandleBlocked('handleCancelRelocate')) return;
+  
   isRelocation = false;
   RelocationNodeId = null;
   store.dispatch(mainUpdate());
@@ -219,9 +251,12 @@ function NodeRelocate(endParentNode) {
 
 
 let newNodeIdCounter = 1;
-function handleAddChildNode(nodeId) {
+async function handleAddChildNode(nodeId) {
+  if(!checkHandleBlocked('handleAddChildNode')) return;
+  handlesBlockedForAddNode = true;
+
   AddChildNode(nodeId);
-  clearRedoHistory();
+  // clearRedoHistory();
 }
 function AddChildNode(nodeId) {
   let node = ROOT.nodes[nodeId];
@@ -238,23 +273,70 @@ function AddChildNode(nodeId) {
     childrens: [],
 
     active: true,
-    isExpanded: false,
+    isExpanded: true,
     isEditing: false,
+    isCreating: true,
 
     isDeleted: false,
   }
   ROOT.nodes[newNodeId] = newNode;
   node.childrens.push(newNodeId);
 
-  actionsHistory.push( {AddChild: {nodeId: newNodeId, parentId: node.id}} );
-  EditedNodes[node.id] = node;
-  EditedNodes[newNodeId] = newNode;
   newNodeIdCounter += 1;
+  store.dispatch(mainUpdate());
+}
+async function HandleAddChildNodeSave(nodeId) {
+  if(!checkHandleBlocked('HandleAddChildNodeSave')) return;
+  
+  let [oldNodeToSave, node] = EditNodeSave(nodeId);
+
+  const formData = new FormData();
+  formData.append("newNode", JSON.stringify(node));
+
+  const response = await fetch("treeWatcher/createNode", {
+    method: "POST",
+    body: formData,
+  });
+  const newNodeId = await response.json();
+
+  AddChildNodeSave(nodeId, newNodeId);
+  handlesBlockedForAddNode = false;
+}
+function AddChildNodeSave(nodeId, newNodeId) {
+  let node = ROOT.nodes[nodeId];
+  // Смена id во всём
+  node.id = newNodeId;
+  ROOT.nodes[newNodeId] = node;
+  delete ROOT.nodes[nodeId];
+  let parentNode = ROOT.nodes[node.parentId];
+  deleteChild( parentNode, nodeId );
+  parentNode.childrens.push(newNodeId);
+  node.isCreating = false;
+  
+  actionsHistory.push( {AddChild: {node: node, parentId: node.parentId}} ); //  <===
+  store.dispatch(mainUpdate());
+  
+  EditedNodes[node.parentId] = parentNode;
+  EditedNodes[newNodeId] = node;
+}
+
+async function HandleAddChildNodeCancel(nodeId) {
+  if(!checkHandleBlocked('HandleAddChildNodeCancel')) return;
+  
+  let node = ROOT.nodes[nodeId];
+  // удаление id во всём
+  deleteChild( node.parentId, nodeId );
+  delete ROOT.nodes[nodeId];
+  node.isCreating = false;
+  handlesBlockedForAddNode = false;
+
   store.dispatch(mainUpdate());
 }
 
 
 function handleUndo() {
+  if(checkHandleBlocked('handleUndo')) return;
+  
   let lastAction = actionsHistory.pop();
   
   const [key, action] = Object.entries(lastAction)[0];
@@ -283,9 +365,9 @@ function handleUndo() {
     case 'AddChild':
       // newNodeIdCounter -= 1;
       // delete ROOT.nodes[action.nodeId];
-      deleteChild(action.parentId, action.nodeId);
-      ROOT.nodes[action.nodeId].isDeleted = true;
-      undoHistory.push({AddChild:{nodeId: action.nodeId, parentId: action.parentId}});
+      deleteChild(action.parentId, action.node.id);
+      action.node.isDeleted = true;
+      undoHistory.push({AddChild:{node: action.node, parentId: action.parentId}});
 
     break;
   }
@@ -297,16 +379,18 @@ function handleUndo() {
   {Edit: {from:'oldNode', to:'newNode'}},
   {Del: {nodeId:'nodeId', parentId:'nodeId'}}, // Удаление - открепление узла, а потом его потеря при сохранении на сервере
   {Relocate: {from: 'parentId', to: 'endParentId', nodeId:'nodeId'}},
-  {AddChild: {nodeId: 'newNodeId', parentId: 'nodeId'}}
+  {AddChild: {node: 'node', parentId: 'nodeId'}}
 ]
 /// undoHistory for redo
 [
   {Edit:{node: 'node', futureNode: 'futureNode'}},
   {Del:{nodeId: 'nodeId', parentId:'parentId'}},
   {Relocate:{oldParentId: action.from, futureParentId: action.to}},
-  {AddChild:{nodeId: 'newNodeId', parentId: 'nodeId'}}
+  {AddChild:{node: 'node', parentId: 'nodeId'}}
 ]*/
 function handleRedo() {
+  if(checkHandleBlocked('handleRedo')) return;
+  
   let lastAction = undoHistory.pop();
 
   const [key, action] = Object.entries(lastAction)[0];
@@ -326,14 +410,16 @@ function handleRedo() {
       ROOT.nodes[action.futureParentId].childrens.push(action.nodeId);
     break;
     case 'AddChild':
-      ROOT.nodes[action.parentId].childrens.push(action.nodeId);
-      ROOT.nodes[action.nodeId].isDeleted = false;
+      ROOT.nodes[action.parentId].childrens.push(action.node.id);
+      action.node.isDeleted = false;
     break;
   }
   store.dispatch(mainUpdate());
 }
 
 async function handleSaveAll() {
+  if(!checkHandleBlocked('handleSaveAll')) return;
+  
   const formData = new FormData();
   formData.append("EditedNodes", JSON.stringify(EditedNodes));
   try {
@@ -405,11 +491,33 @@ function UIWindow({ children }) {
 }
 
 function handlerNodeInfo(node) {
+  if(!checkHandleBlocked('handlerNodeInfo')) return;
+  
   if(isRelocation){ NodeRelocate(node) }
 }
 function NodeInfo(nodeObj){
   let node = nodeObj.node;
   if(!node.isExpanded) return '';
+
+  let Buttons = ()=> {
+      if(node.isCreating) return(
+        <div className="buttons">
+          <div onClick={()=>{HandleAddChildNodeSave  (node.id)}}>Save </div>
+          <div onClick={()=>{HandleAddChildNodeCancel(node.id)}}>Cancel </div>
+        </div>)
+      if(node.isEditing) return(
+        <div className="buttons">
+          <div onClick={()=>{handleEditNodeSave  (node.id)}}>Save </div>
+          <div onClick={()=>{handleEditNodeCancel(node.id)}}>Cancel </div>
+        </div>)
+      return(
+        <div className="buttons">
+          <button disabled={isRelocation} onClick={(event)=>{event.stopPropagation(); handleEditNode    (node.id)}}>Edit </button>
+          <button disabled={isRelocation} onClick={(event)=>{event.stopPropagation(); handleDeleteNode  (node.id)}}>Delete </button>
+          <button disabled={isRelocation} onClick={(event)=>{event.stopPropagation(); handleRelocateNode(node.id)}}>Relocate </button>
+          <button disabled={isRelocation} onClick={(event)=>{event.stopPropagation(); handleAddChildNode(node.id)}}>Add_child </button>
+        </div>)
+    }
 
   return <div className="nodeInfo" onClick={()=>{handlerNodeInfo(node)}}>
 
@@ -417,26 +525,14 @@ function NodeInfo(nodeObj){
       {Dict.nodeAttributionsToShow.map((atr, key)=>
         <tr key={key}>
           <td>{ Dict.upFirstLet(Dict.rus(atr)) +': ' }</td>
-          <td>{ node.isEditing?  
+          <td>{ node.isEditing || node.isCreating?  
             <input type='text' id={'node'+node.id+atr} defaultValue={node['editing'+atr]} onChange={e => node['editing'+atr] = e.target.value} />  :  node[atr] 
           }</td> 
         </tr>
       )}
     </tbody></table>
-
-    {node.isEditing?
-      <div className="buttons">
-        <div onClick={()=>{handleEditNodeSave  (node.id, this)}}>Save </div>
-        <div onClick={()=>{handleEditNodeCancel(node.id)}}>Cancel </div>
-      </div>
-      :
-      <div className="buttons">
-        <button disabled={isRelocation} onClick={(event)=>{event.stopPropagation(); handleEditNode    (node.id)}}>Edit </button>
-        <button disabled={isRelocation} onClick={(event)=>{event.stopPropagation(); handleDeleteNode  (node.id)}}>Delete </button>
-        <button disabled={isRelocation} onClick={(event)=>{event.stopPropagation(); handleRelocateNode(node.id)}}>Relocate </button>
-        <button disabled={isRelocation} onClick={(event)=>{event.stopPropagation(); handleAddChildNode(node.id)}}>Add_child </button>
-      </div>
-    }
+    <Buttons/>
+    
   </div>
 } 
 
@@ -453,11 +549,11 @@ function CreateBranch (nodeId){
     </div>
   )
 
-  return <div className={`tree-node ${node.active ? 'active' : ''}`}>
+  return <div className={`tree-node ${node.active || node.isCreating ? 'active' : ''}`}>
     
     <div className="nodeText" onClick={()=>handletoggleExpandNode(node)}> 
       <div>
-        {node.isExpanded ? "−" : "+"}
+        {node.isExpanded? "−" : "+"}
       </div>
       <div>{node.name}</div>
     </div>

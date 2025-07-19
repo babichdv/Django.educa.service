@@ -129,3 +129,20 @@ def saveNodes(request):
         except: None
 
     return JsonResponse(newIdDictionary, safe=False, json_dumps_params={'ensure_ascii': False})
+
+@csrf_exempt
+def createNode(request):
+    requestedNode = json.loads(request.POST.dict().get("newNode", None))
+    # print(requestedNode)
+    newNodeParams = {}
+    for atr in NodeAttributes:
+        if atr=='id': continue
+        if atr=='parentId':
+            newNodeParams[atr] = NodesEl.objects.get(pk= requestedNode[atr])
+            continue
+        newNodeParams[atr] = requestedNode[atr]
+        # setattr(newNodeParams, atr, requestedNode[atr])
+    newNode = NodesEl(**newNodeParams)
+    newNode.save()
+    
+    return JsonResponse(newNode.id, safe=False, json_dumps_params={'ensure_ascii': False})
