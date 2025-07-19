@@ -154,6 +154,7 @@ function handleEditNodeSave(nodeId) {
   store.dispatch(mainUpdate());
   clearRedoHistory();
   actionsHistory.push({Edit: {from: oldNodeToSave, to: node/*newNodeToSave*/}})
+  AutosaveNodes();
 } // V V V V V
 function EditNodeSave(nodeId, extraNode){
   let oldNodeToSave = {}
@@ -175,7 +176,6 @@ function EditNodeSave(nodeId, extraNode){
   node.isCreating = false;
 
   EditedNodes[node.id] = node;
-  SendEditedNodes();
   return [ oldNodeToSave, node ];
 }
 
@@ -188,11 +188,11 @@ function handleDeleteNode(nodeId) {
 
     actionsHistory.push( {Del: {nodeId: nodeId, parentId: ROOT.nodes[nodeId].parentId}} );
     clearRedoHistory();
-    EditedNodes[nodeId] = node;
-    EditedNodes[node.parentId] = ROOT.nodes[node.parentId];
-
     deleteChild(node.parentId, node.id);
     node.isDeleted = true;
+    EditedNodes[nodeId] = node;
+    EditedNodes[node.parentId] = ROOT.nodes[node.parentId];
+    AutosaveNodes();
     store.dispatch(mainUpdate());
   }
 };
@@ -239,6 +239,7 @@ function NodeRelocate(endParentNode) {
   EditedNodes[node.id] = node;
   EditedNodes[parentNode.id] = parentNode;
   EditedNodes[endParentNode.id] = endParentNode;
+  AutosaveNodes();
   clearRedoHistory();
   node.parentId = endParentNode.id;
   deleteChild(parentNode, node.id);
@@ -318,6 +319,7 @@ function AddChildNodeSave(nodeId, newNodeId) {
   
   EditedNodes[node.parentId] = parentNode;
   EditedNodes[newNodeId] = node;
+  AutosaveNodes();
 }
 
 async function HandleAddChildNodeCancel(nodeId) {
@@ -341,7 +343,7 @@ function handleUndo() {
   
   const [key, action] = Object.entries(lastAction)[0];
   switch (key) {
-    case 'Edit':
+    case 'Edit':{
       let node = action.to;
       let futureNode = {}
       Object.assign(futureNode, node);
@@ -350,29 +352,49 @@ function handleUndo() {
         node[atr] = action.from[atr]
       })
       undoHistory.push({Edit:{node: node, futureNode: futureNode}});
-    break;
-    case 'Del':
-      ROOT.nodes[action.parentId].childrens.push(action.nodeId);
-      ROOT.nodes[action.nodeId].isDeleted = false;
-      undoHistory.push({Del:{nodeId: action.nodeId, parentId:action.parentId}})
-    break;
-    case 'Relocate':
-      deleteChild(action.to, action.nodeId);                    // Удаляет из нового родителя
-      ROOT.nodes[action.from].childrens.push(action.nodeId);    // Добавляет в старого родителя
-      ROOT.nodes[action.nodeId].parentId = action.from;         // Изменяет родителя у узла
+      EditedNodes[node.id] = node;
+    }break;
+    case 'Del':{
+      let parentNode = ROOT.nodes[action.parentId];
+      parentNode.childrens.push(action.nodeId);
+      
+      let node = ROOT.nodes[action.nodeId];
+      node.isDeleted = false;
+
+      undoHistory.push({Del:{nodeId: action.nodeId, parentId: action.parentId}})
+
+      EditedNodes[action.parentId] = parentNode;
+      EditedNodes[action.nodeId] = node;
+      
+    }break;
+    case 'Relocate':{
+      let newParent = ROOT.nodes[action.to];
+      deleteChild(newParent, action.nodeId);                    // Удаляет из нового родителя
+
+      let oldParent = ROOT.nodes[action.from];
+      oldParent.childrens.push(action.nodeId);                  // Добавляет в старого родителя
+
+      let node = ROOT.nodes[action.nodeId]
+      node.parentId = action.from;                              // Изменяет родителя у самого узла
+
       undoHistory.push({Relocate:{oldParentId: action.from, futureParentId: action.to, nodeId: action.nodeId}})
-    break;
-    case 'AddChild':
-      // newNodeIdCounter -= 1;
-      // delete ROOT.nodes[action.nodeId];
-      deleteChild(action.parentId, action.node.id);
+      EditedNodes[action.to] = newParent;
+      EditedNodes[action.from] = oldParent;
+      EditedNodes[action.nodeId] = node;
+    }break;
+    case 'AddChild':{
+      let parentNode = ROOT.nodes[action.parentId]
+      deleteChild(parentNode, action.node.id);
+
       action.node.isDeleted = true;
+      
       undoHistory.push({AddChild:{node: action.node, parentId: action.parentId}});
-
-    break;
+      EditedNodes[action.parentId] = parentNode;
+      EditedNodes[action.node.id] = action.node;
+    }break;
   }
+  AutosaveNodes();
   store.dispatch(mainUpdate());
-
 }
 /*
 [// KEY:         ACTION           for undo
@@ -398,28 +420,61 @@ function handleRedo() {
     case 'Edit':
       EditNodeSave(action.node.id, action.futureNode);
     break;
-    case 'Del':
+    case 'Del':{
       actionsHistory.push( {Del: {nodeId: action.nodeId, parentId: action.parentId}} );
-      ROOT.nodes[action.nodeId].isDeleted = true;
-      deleteChild(ROOT.nodes[action.nodeId].parentId, action.nodeId);
-    break;
-    case 'Relocate':
-      actionsHistory.push( {Relocate: {from: action.oldParentId, to: action.futureParentId, nodeId: action.nodeId}} );
-      ROOT.nodes[action.nodeId].parentId = action.futureParentId;
-      deleteChild(action.oldParentId, action.nodeId);
-      ROOT.nodes[action.futureParentId].childrens.push(action.nodeId);
-    break;
-    case 'AddChild':
-      ROOT.nodes[action.parentId].childrens.push(action.node.id);
+      let node = ROOT.nodes[action.nodeId]
+      let parentNode = ROOT.nodes[action.parentId];
+      node.isDeleted = true;
+      deleteChild(parentNode, action.nodeId);
+
+      EditedNodes[action.parentId] = parentNode;
+      EditedNodes[action.nodeId] = node;
+
+    }break;
+    case 'Relocate':{
+      actionsHistory.push( {Relocate: {from: action.oldParentId, to: action.futureParentId, nodeId: action.nodeId}} )
+
+      let node = ROOT.nodes[action.nodeId]
+      node.parentId = action.futureParentId;
+
+      let oldParentNode = ROOT.nodes[action.oldParentId]
+      deleteChild(oldParentNode, action.nodeId);
+
+      let futureParentNode = ROOT.nodes[action.futureParentId]
+      futureParentNode.childrens.push(action.nodeId);
+
+      EditedNodes[action.nodeId] = node;
+      EditedNodes[action.oldParentId] = oldParentNode;
+      EditedNodes[action.futureParentId] = futureParentNode;
+    }break;
+    case 'AddChild':{
+      let parentNode = ROOT.nodes[action.parentId]
+      parentNode.childrens.push(action.node.id);
+
       action.node.isDeleted = false;
-    break;
+
+      EditedNodes[action.parentId] = parentNode;
+      EditedNodes[action.node.id] = action.node;
+    }break;
   }
+  AutosaveNodes();
   store.dispatch(mainUpdate());
 }
 
-async function handleSaveAll() {
-  if(!checkHandleBlocked('handleSaveAll')) return;
+let autosave = true;
+function AutosaveNodes(){
+  if( !autosave ) return;
+  if(Object.keys(EditedNodes).length == 0) return;
   
+  if(SaveAll().ok){
+    EditedNodes = {} // delete all
+  }
+}
+function handleSaveAll(){
+  if(!checkHandleBlocked('handleSaveAll')) return;
+  SaveAll()
+}
+async function SaveAll() {
   const formData = new FormData();
   formData.append("EditedNodes", JSON.stringify(EditedNodes));
   try {
@@ -429,9 +484,13 @@ async function handleSaveAll() {
       body: formData
     })
     let newIdsDict = await response.json();
-    
-  } catch (error) {
-    alert("Ошибка сохранения!")
+    return {ok:true};
+  }
+  catch (error) {
+    alert(error)
+    alert("Ошибка сохранения! Сохраните код ваших узлов!!!")
+    alert(JSON.stringify(EditedNodes))
+    return {error:"Server isnt good."}
   }
 }
 function UIWindow({ children }) {
