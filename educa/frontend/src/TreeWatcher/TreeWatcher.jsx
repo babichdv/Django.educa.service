@@ -430,46 +430,6 @@ async function handleSaveAll() {
     })
     let newIdsDict = await response.json();
     
-
-    // изменяет свой Id у actions Undo/redo
-    actionsHistory.forEach( action=> {
-      let [actionName, actionValues] = Object.entries(action)[0];
-
-      Object.entries(actionValues).forEach( 
-        ([actionValueName, actionValue]) => {
-          if( typeof actionValue !== "object" && newIdsDict[actionValue] ){
-            action[actionName][actionValueName] = newIdsDict[actionValue]
-          }
-        })
-    })
-    undoHistory.forEach( action=> {
-      let [actionName, actionValues] = Object.entries(action)[0];
-
-      Object.entries(actionValues).forEach( 
-        ([actionValueName, actionValue]) => {
-          if( typeof actionValue !== "object" && newIdsDict[actionValue] ){
-            action[actionName][actionValueName] = newIdsDict[actionValue]
-          }
-        })
-    })
-
-    // изменяет свой Id у родителя
-    for (let id of Object.keys(newIdsDict)) {
-      let parent = ROOT.nodes[ROOT.nodes[id].parentId]
-      deleteChild(parent, id);
-      parent.childrens.push(newIdsDict[id]);
-    }
-    // изменяет Id у себя
-    for (let id of Object.keys(newIdsDict)) {
-      ROOT.nodes[id].id = newIdsDict[id];
-      ROOT.nodes[newIdsDict[id]] = ROOT.nodes[id];
-      delete ROOT.nodes[id];
-    }
-    // изменяет EditedNodes
-    for (let id of Object.keys(newIdsDict)) {
-      EditedNodes[newIdsDict[id]] = EditedNodes[id];   
-      delete EditedNodes[id];
-    }
   } catch (error) {
     alert("Ошибка сохранения!")
   }
