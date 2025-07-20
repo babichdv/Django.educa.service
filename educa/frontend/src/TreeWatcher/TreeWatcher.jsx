@@ -1,5 +1,6 @@
 import React, { useState, useEffect, act } from 'react';
 import { store, mainUpdate } from '../index.jsx';
+import PopupTableSelect from './PopupTableSelect';
 
 const ROOT = {
   nodes:{'-1':{
@@ -514,6 +515,13 @@ function handlerNodeInfo(node) {
   
   if(isRelocation){ NodeRelocate(node) }
 }
+
+
+const tableData = [
+  { id: 1, название: "Яблоко", order: 2 },
+  { id: 2, название: "Банан", order: 1 },
+]
+
 function NodeInfo(nodeObj){
   let node = nodeObj.node;
   if(!node.isExpanded) return '';
@@ -538,27 +546,37 @@ function NodeInfo(nodeObj){
         </div>)
     }
 
-  return <div className="nodeInfo" onClick={()=>{handlerNodeInfo(node)}}>
-
+  return( 
+  <div className="nodeInfo" onClick={()=>{handlerNodeInfo(node)}}>
     <table className="nodeInfoAttrs"><tbody>
       {Dict.nodeAttributionsToShow.map((atr, key)=>
         <tr key={key}>
           <td>{ Dict.upFirstLet(Dict.rus(atr)) +': ' }</td>
-          <td>{ node.isEditing || node.isCreating?  
+          <td>{ node.isEditing || node.isCreating?         
             <input type='text' id={'node'+node.id+atr} defaultValue={node['editing'+atr]} onChange={e => node['editing'+atr] = e.target.value} />  :  node[atr] 
           }</td> 
         </tr>
       )}
+      <tr>
+        <td>Категория:</td>
+        <td><PopupTableSelect 
+          data={tableData}
+          value={selectedItem}
+          onChange={setSelectedItem}
+          placeholder="Выберите фрукт"/>
+        </td>
+      </tr>
     </tbody></table>
     <Buttons/>
-    
-  </div>
+  </div>)
 } 
+
+
 
 function CreateBranch (nodeId){
   const node = ROOT.nodes[nodeId.nodeId];
-  if(!node) return ''; //На конечные ветки
-  if(nodeId.nodeId == '-1') return (
+  if(!node) return '';              // На конечные ветки
+  if(nodeId.nodeId == '-1') return (// Первая ветка
     <div className='tree-node active'>
       <div className="nodeChilds">
         {node.childrens.map((childId, key) =>
@@ -568,7 +586,7 @@ function CreateBranch (nodeId){
     </div>
   )
 
-  return <div className={`tree-node ${node.active || node.isCreating ? 'active' : ''}`}>
+  return( <div className={`tree-node ${node.active || node.isCreating ? 'active' : ''}`}>
     
     <div className="nodeText" onClick={()=>handletoggleExpandNode(node)}> 
       <div>
@@ -585,7 +603,7 @@ function CreateBranch (nodeId){
       )}
     </div>
 
-  </div>
+  </div>)
 }
 export default function TreeWatcher() {
 
@@ -600,6 +618,7 @@ export default function TreeWatcher() {
     };
     initialize();
   }, []);
+
 
   return (
     <UIWindow>
