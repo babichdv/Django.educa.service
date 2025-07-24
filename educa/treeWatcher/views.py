@@ -1,5 +1,5 @@
 from django.http import JsonResponse
-from treeWatcher.models import NodesEl
+from treeWatcher.models import NodesEl, ItemGroups, ItemUnit
 from django.views.decorators.csrf import csrf_exempt
 import json
 from django.db.models import Q
@@ -22,7 +22,8 @@ def getNode(request):
         
     return JsonResponse(nodeMassive, safe=False, json_dumps_params={'ensure_ascii': False})
 
-NodeAttributes = ['parentId', 'id', 'name', 'description', 'amount', 'isDeleted']
+NodeAttributes = [ 'id', 'name', 'amount', 'isDeleted', 'itemGroupId', 'parentId', 'ItemUnitId', 'price' ]
+
 def endBranchesGrow(nodeMassive):
     newEndBranches=[]
     for branch in nodeMassive["endBranches"]:
@@ -43,9 +44,18 @@ def endBranchesGrow(nodeMassive):
             node_data['parentId'] = node.parentId.id
         else:
             node_data['parentId'] = -1
+            
+        if(node.itemGroupId):
+            node_data['itemGroupId'] = node.itemGroupId.id
+        else:
+            node_data['itemGroupId'] = 0
+
+        if(node.ItemUnitId):
+            node_data['ItemUnitId'] = node.ItemUnitId.id
+        else:
+            node_data['ItemUnitId'] = 0
 
         childrens = node.childrens.filter(Q(isDeleted=False) | Q(isDeleted__isnull=True)).all()
-
         if(childrens):
             for child in childrens:
                 node_data['childrens'].append(child.id)
@@ -65,23 +75,26 @@ def saveNodes(request):
     newIdDictionary = {}
     loadedNodesId = []
     newParentsDictionary = []  # [x][0]-nodeId, [x][1]-'new'parentId
-    # Для новых узлов для нового ID из бд, вместо newID
+
+    # Для новых узлов c newId - для нового ID из бд, вместо newID
     for nodeId in EditedNodes:
         if str(EditedNodes[nodeId]['id'])[:3] == 'new':
-            # if(not EditedNodes[nodeId]['isDeleted']):
-            # else:
-            #     loadedNodesId.append(EditedNodes[nodeId]['id'])
             newNodeParams = {}
             for atr in NodeAttributes:
-                if atr=='id': continue
-                if atr=='parentId':
-                    if str(EditedNodes[nodeId]['parentId'])[:3] == 'new':
-                        newNodeParams[atr] = None # NodesEl.objects.get(pk=newIdDictionary[EditedNodes[nodeId]['parentId']])
-                        newParentsDictionary.append([ EditedNodes[nodeId]['id'], EditedNodes[nodeId]['parentId'] ]) # [x][0]-nodeId, [x][1]-'new'parentId
-                    else:
-                        newNodeParams[atr] = NodesEl.objects.get(pk=EditedNodes[nodeId][atr])
-                    continue
-                newNodeParams[atr] = EditedNodes[nodeId][atr]
+                match atr:
+                    case 'id': continue
+                    case 'parentId':
+                        if str(EditedNodes[nodeId]['parentId'])[:3] == 'new':
+                            newNodeParams[atr] = None
+                            newParentsDictionary.append([ EditedNodes[nodeId]['id'], EditedNodes[nodeId]['parentId'] ]) # [x][0]-nodeId, [x][1]-'new'parentId
+                        else:
+                            newNodeParams[atr] = NodesEl.objects.get(pk=EditedNodes[nodeId]['parentId'])
+                    case 'itemGroupId':
+                        newNodeParams[atr] = ItemGroups.objects.get(pk=EditedNodes[nodeId]['itemGroupId']) if EditedNodes[nodeId]['itemGroupId'] else None
+                    case 'ItemUnitId':
+                        newNodeParams[atr] = ItemUnit.objects.get(pk=EditedNodes[nodeId]['ItemUnitId']) if EditedNodes[nodeId]['ItemUnitId'] else None
+                    case _:
+                        newNodeParams[atr] = EditedNodes[nodeId][atr]
             newNode = NodesEl(**newNodeParams)
             newNode.save()
             
@@ -92,10 +105,12 @@ def saveNodes(request):
                 EditedNodes[nodeId]['parentId'] = newNode.parentId.id
 
             loadedNodesId.append(newNode.id)
+    
     # Заменяем newId у newParentsDictionary
     for change in newParentsDictionary:
         change[0] = newIdDictionary[change[0]]
-    # Для остальных узлов 
+
+    # Для остальных узлов - уже существующих
     for nodeId in EditedNodes:
         if nodeId in loadedNodesId: continue
         try:
@@ -103,19 +118,19 @@ def saveNodes(request):
         except:
             print('Нет такого node в бд')
             continue
-
-        # if(EditedNodes[nodeId]['isDeleted']):
-        #     nodeInDB.delete()
-        # else:
         for atr in NodeAttributes:
             if atr=='parentId':
                 if EditedNodes[nodeId]['parentId'] == -1: continue
                 if str(EditedNodes[nodeId]['parentId'])[:3] == 'new':
-                    EditedNodes[nodeId]['parentId'] = None #NodesEl.objects.get(pk=newIdDictionary[nodeId])
+                    EditedNodes[nodeId]['parentId'] = None
                     newParentsDictionary.append([ nodeId, EditedNodes[nodeId]['parentId'] ]) # [x][0]-nodeId, [x][1]-'new'parentId
                 else:
                     EditedNodes[nodeId][atr] = NodesEl.objects.get(pk=nodeId).parentId
-
+            if atr=='itemGroupId':
+                EditedNodes[nodeId]['itemGroupId'] = ItemGroups.objects.get(pk=EditedNodes[nodeId]['itemGroupId']) if EditedNodes[nodeId]['itemGroupId'] else None
+            if atr=='ItemUnitId':
+                EditedNodes[nodeId]['ItemUnitId'] = ItemUnit.objects.get(pk=EditedNodes[nodeId]['ItemUnitId']) if EditedNodes[nodeId]['ItemUnitId'] else None
+                
             setattr(nodeInDB, atr, EditedNodes[nodeId][atr])
         nodeInDB.save()
 
@@ -136,13 +151,25 @@ def createNode(request):
     # print(requestedNode)
     newNodeParams = {}
     for atr in NodeAttributes:
-        if atr=='id': continue
-        if atr=='parentId':
-            newNodeParams[atr] = NodesEl.objects.get(pk= requestedNode[atr])
-            continue
-        newNodeParams[atr] = requestedNode[atr]
-        # setattr(newNodeParams, atr, requestedNode[atr])
+        match atr:
+            case 'id': continue
+            case 'parentId':
+                newNodeParams[atr] = NodesEl.objects.get(pk= requestedNode[atr])
+            case 'itemGroupId':
+                newNodeParams[atr] = requestedNode[atr].id
+            case _:
+                newNodeParams[atr] = requestedNode[atr]
     newNode = NodesEl(**newNodeParams)
     newNode.save()
     
     return JsonResponse(newNode.id, safe=False, json_dumps_params={'ensure_ascii': False})
+
+@csrf_exempt
+def getDictionaries(request):
+    # EditedNodes = json.loads(request.POST.dict().get("EditedNodes", None))
+
+    Dictionaries = {}
+    Dictionaries["ItemUnit"]   = {str(item['id']): item for item in ItemUnit.objects.all().values()}
+    Dictionaries["ItemGroups"] = {str(item['id']): item for item in ItemGroups.objects.all().values()}
+
+    return JsonResponse( Dictionaries, safe=False, json_dumps_params={'ensure_ascii': False})

@@ -6,20 +6,32 @@ class ItemGroups(models.Model):
     name          = models.TextField(max_length=300, null=True)
     orderValue    = models.IntegerField(max_length=10, null=True)
 
+class ItemUnit(models.Model):
+    id            = models.AutoField(primary_key=True)
+    name          = models.TextField(max_length=300, null=True)
+    price         = models.IntegerField(max_length=10, null=True)
+    measureUnit   = models.IntegerField(max_length=10, null=True)
+    
+    orderValue    = models.IntegerField(max_length=10, null=True)
+
 class NodesEl(models.Model):
     id            = models.AutoField(primary_key=True)
     name          = models.TextField(max_length=300, null=True)
     amount        = models.TextField(max_length=100, null=True)
-    chosenItem    = models.IntegerField(max_length=10, null=True)
-    #time         = models.DateTimeField(auto_now=True, null=True)
-    #description  = models.TextField(max_length=1400, null=True)
+    price         = models.IntegerField(max_length=10, null=True)
+    # chosenItem    = models.IntegerField(max_length=10, null=True)
 
-    itemGroup     = models.ForeignKey(ItemGroups,
-                                      verbose_name='ItemGroup',
-                                      related_name='items', 
+    itemGroupId   = models.ForeignKey(ItemGroups,
+                                      verbose_name='ItemGroupId',
+                                      related_name='items',
                                       null=True, blank=True,
                                       on_delete=models.CASCADE)
-
+    
+    ItemUnitId    = models.ForeignKey(ItemUnit,
+                                      verbose_name='ItemUnitId',
+                                      related_name='items',
+                                      null=True, blank=True,
+                                      on_delete=models.CASCADE)
 
     isDeleted     = models.BooleanField(null=True)
 

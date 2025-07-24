@@ -1,6 +1,6 @@
 import React, { useState, useEffect, act } from 'react';
 import { store, mainUpdate } from '../index.jsx';
-import PopupTableSelect from './PopupTableSelect';
+import PopupTableSelect from './PopupTableSelect.jsx';
 
 const ROOT = {
   nodes:{'-1':{
@@ -22,16 +22,22 @@ const ROOT = {
 };
 const Dict = new class{
   constructor(){
-    this.translations = 
+    this.translations =
     {
       'name':'имя',
       'description':"описание",
       'amount':"количество",
     }
     this.nodeAttributionsToShow = [
+      // 'name',
+      'description',
+      'amount',
+    ]
+    this.nodeAttributionsToSave = [
       'name',
       'description',
       'amount',
+      'price',
     ]
   }
   upFirstLet(word){
@@ -94,6 +100,19 @@ async function loadNodes(nodeId, depth) {
     
   }
 }
+let Dictionaries = {}
+
+async function loadDictionaries() {
+  const response = await fetch("treeWatcher/getDictionaries", {
+    // method: "POST",
+    // body: formData
+  });
+  Dictionaries = await response.json();
+  console.log(Dictionaries);
+  
+}
+
+
 /**
  * @param {*} parent - object or id
  * @param {*} childId
@@ -135,7 +154,7 @@ function handleEditNode(nodeId) {
   if(!checkHandleBlocked('handleEditNode')) return;
 
   let node = ROOT.nodes[nodeId];
-  Dict.nodeAttributionsToShow.map(atr=>{
+  Dict.nodeAttributionsToSave.map(atr=>{
     node['editing'+atr] = node[atr];
 
   })
@@ -162,13 +181,14 @@ function EditNodeSave(nodeId, extraNode){
   let node = ROOT.nodes[nodeId];
   Object.assign(oldNodeToSave, node); //копирование детей и тд, для того, что не входит в Dict
 
-  Dict.nodeAttributionsToShow.map(atr=>{
+  Dict.nodeAttributionsToSave.map(atr=>{
     if(extraNode){
       // newNodeToSave[atr] = extraNode[atr];
       node[atr] = extraNode[atr];
     }else{ // Если нет ноды, то берёт из инпутов
       let input = document.getElementById('node'+node.id+''+atr);
       // newNodeToSave[atr] = input.value;
+      if(!input) return;
       node[atr] = input.value;
     }
   })
@@ -515,13 +535,24 @@ function handlerNodeInfo(node) {
   
   if(isRelocation){ NodeRelocate(node) }
 }
+function handlerChoseItemUnit(el, node) {
+  node.ItemUnitId = el.id;
+  node.name = el.name;
+  node.price = el.price;
+  
+  EditedNodes[node.id] = node;
+  AutosaveNodes();
+  
+  store.dispatch(mainUpdate());
+}
+function handlerCleanItemUnit(node) {
+  node.ItemUnitId = null;
+  
+  EditedNodes[node.id] = node;
+  AutosaveNodes();
 
-
-const tableData = [
-  { id: 1, название: "Яблоко", order: 2 },
-  { id: 2, название: "Банан", order: 1 },
-]
-
+  store.dispatch(mainUpdate());
+}
 function NodeInfo(nodeObj){
   let node = nodeObj.node;
   if(!node.isExpanded) return '';
@@ -558,12 +589,44 @@ function NodeInfo(nodeObj){
         </tr>
       )}
       <tr>
+        <td>Цена:</td>
+        <td>{ node.ItemUnitId?
+            <div> {Dictionaries.ItemUnit[node.ItemUnitId]?.price} </div>
+            :
+            node.isEditing || node.isCreating?
+              <input type='text' id={'node'+node.id+'price'} defaultValue={node['editing'+'price']} onChange={e => node['editing'+'price'] = e.target.value} />
+              :
+              node['price'] 
+        }</td>
+      </tr>
+      <tr>
         <td>Категория:</td>
         <td><PopupTableSelect 
-          data={tableData}
-          value={selectedItem}
-          onChange={setSelectedItem}
-          placeholder="Выберите фрукт"/>
+          data={Dictionaries.ItemGroups}
+          value={node.itemGroupId}
+          onChange={ (el)=>{ node.itemGroupId = el.id } }
+          placeholder={ Dictionaries.ItemGroups[node.itemGroupId]?.name || " - " }/> 
+        </td>
+      </tr>
+      <tr>
+        <td>Продукт:</td>
+        <td>
+          <PopupTableSelect 
+            data={Dictionaries.ItemUnit}
+            value={node.ItemUnitId}
+            onChange={ (el)=>{
+              handlerChoseItemUnit(el, node);
+            }}
+            placeholder={ Dictionaries.ItemUnit[node.ItemUnitId]?.name || " - " }>
+          </PopupTableSelect>
+          {node.ItemUnitId?
+            <div><button onClick={()=>handlerCleanItemUnit(node)}> [X] </button> {node['name']} </div>
+            :
+            node.isEditing || node.isCreating?
+              <input type='text' id={'node'+node.id+'name'} defaultValue={node['editing'+'name']} onChange={e => node['editing'+'name'] = e.target.value} />
+              :
+              node['name'] 
+          }
         </td>
       </tr>
     </tbody></table>
@@ -576,6 +639,7 @@ function NodeInfo(nodeObj){
 function CreateBranch (nodeId){
   const node = ROOT.nodes[nodeId.nodeId];
   if(!node) return '';              // На конечные ветки
+  
   if(nodeId.nodeId == '-1') return (// Первая ветка
     <div className='tree-node active'>
       <div className="nodeChilds">
@@ -609,8 +673,10 @@ export default function TreeWatcher() {
 
   useEffect(() => {
     require('./TreeWatcher.css');
+    require('./PopupTableSelect.css');
     
     const initialize = async () => {
+      await loadDictionaries();
       await loadNodes(0, 2);
       ROOT.nodes['-1'].childrens = [0];
       ROOT.nodes[0].active = true;

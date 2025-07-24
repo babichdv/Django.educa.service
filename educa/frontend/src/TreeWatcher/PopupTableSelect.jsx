@@ -1,20 +1,22 @@
 import React, { useState, useRef, useEffect } from 'react';
-import './PopupTableSelect.css'; // Стили для компонента
 
 const PopupTableSelect = ({ data, value, onChange, placeholder = "Выберите значение" }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const popupRef = useRef(null);
 
-  // Сортируем данные сначала по order, затем по названию
-  const sortedData = [...data].sort((a, b) => {
-    if (a.order !== b.order) return a.order - b.order;
-    return a.название.localeCompare(b.название);
+  // Преобразуем объект объектов в массив объектов
+  const dataArray = Object.values(data || {});
+
+  // Сортируем данные сначала по orderValue, затем по названию
+  const sortedData = [...dataArray].sort((a, b) => {
+    if (a.orderValue !== b.orderValue) return a.orderValue - b.orderValue;
+    return a.name.localeCompare(b.name);
   });
 
   // Фильтруем данные по поисковому запросу
   const filteredData = sortedData.filter(item =>
-    item.название.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.id.toString().includes(searchTerm)
   );
 
@@ -41,7 +43,8 @@ const PopupTableSelect = ({ data, value, onChange, placeholder = "Выберит
     setSearchTerm('');
   };
 
-  const selectedItem = data.find(item => item.id === value?.id);
+  // Находим выбранный элемент в объекте данных
+  const selectedItem = value?.id ? data?.[value.id] : null;
 
   return (
     <div className="popup-table-select" ref={popupRef}>
@@ -49,7 +52,7 @@ const PopupTableSelect = ({ data, value, onChange, placeholder = "Выберит
         className="select-input" 
         onClick={() => setIsOpen(!isOpen)}
       >
-        {selectedItem ? selectedItem.название : placeholder}
+        {selectedItem ? selectedItem.name : placeholder}
         <span className={`arrow ${isOpen ? 'up' : 'down'}`}></span>
       </div>
 
@@ -70,8 +73,8 @@ const PopupTableSelect = ({ data, value, onChange, placeholder = "Выберит
               <thead>
                 <tr>
                   <th>ID</th>
-                  <th>Название</th>
-                  <th>Order</th>
+                  <th>name</th>
+                  {/* <th>orderValue</th> */}
                 </tr>
               </thead>
               <tbody>
@@ -83,8 +86,8 @@ const PopupTableSelect = ({ data, value, onChange, placeholder = "Выберит
                       className={value?.id === item.id ? 'selected' : ''}
                     >
                       <td>{item.id}</td>
-                      <td>{item.название}</td>
-                      <td>{item.order}</td>
+                      <td>{item.name}</td>
+                      {/* <td>{item.orderValue}</td> */}
                     </tr>
                   ))
                 ) : (
