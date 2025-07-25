@@ -1,4 +1,6 @@
-*{margin: 0;}
+*{  margin: 0;
+    font: 1em sans-serif;
+}
 .treeMain{
     padding: 10px 0px 10px 10px;
     background: #406668;
@@ -7,7 +9,7 @@
 }
 
 .tree-node  {
-    padding: 3px 0px 3px 20px;
+    padding: 0 0 0 15px;
     background: #5f9ea0;
     cursor: default;
     display: none;
@@ -15,12 +17,19 @@
 .active {
     display: block;
 }
-.nodeText{
+.nodeMain{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     border: 1px solid #00ddff;
+}
+.nodePrice{
+    padding: 10px;
+}
+/* .nodeText{
     /* background-image: radial-gradient(circle 100px, transparent 50%, #00ddff 100%); */
     /* background-color: #000000; */
-
-}
+/* } */
 .nodeText > *{
     display: inline-block;
     padding: 2px 5px 2px 5px;

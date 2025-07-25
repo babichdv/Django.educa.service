@@ -300,6 +300,9 @@ function AddChildNode(nodeId) {
     isCreating: true,
 
     isDeleted: false,
+
+    itemGroupId: 0,
+    ItemUnitId: 0,
   }
   ROOT.nodes[newNodeId] = newNode;
   node.childrens.push(newNodeId);
@@ -594,10 +597,14 @@ function NodeInfo(nodeObj){
             <div> {Dictionaries.ItemUnit[node.ItemUnitId]?.price} </div>
             :
             node.isEditing || node.isCreating?
-              <input type='text' id={'node'+node.id+'price'} defaultValue={node['editing'+'price']} onChange={e => node['editing'+'price'] = e.target.value} />
+              <input type='number' id={'node'+node.id+'price'} defaultValue={node['editing'+'price']} onChange={e => node['editing'+'price'] = e.target.value} />
               :
               node['price'] 
         }</td>
+      </tr>
+      <tr>
+        <td>Фиксировать цену:</td>
+        <td><input type='checkbox'/></td>
       </tr>
       <tr>
         <td>Категория:</td>
@@ -642,30 +649,35 @@ function CreateBranch (nodeId){
   
   if(nodeId.nodeId == '-1') return (// Первая ветка
     <div className='tree-node active'>
-      <div className="nodeChilds">
-        {node.childrens.map((childId, key) =>
-          <CreateBranch nodeId={childId} key={key}/>
-        )}
-      </div>
+      {node.childrens.map((childId, key) =>
+        <CreateBranch nodeId={childId} key={key}/>
+      )}
     </div>
   )
 
-  return( <div className={`tree-node ${node.active || node.isCreating ? 'active' : ''}`}>
-    
-    <div className="nodeText" onClick={()=>handletoggleExpandNode(node)}> 
-      <div>
-        {node.isExpanded? "−" : "+"}
+  return(
+  <div className={`tree-node ${node.active || node.isCreating ? 'active' : ''}`}>
+    <div className="nodeMain" onClick={()=>handletoggleExpandNode(node)}>
+      <div className="nodeText"> 
+        <div>
+          {node.isExpanded? "−" : "+"}
+        </div>
+        <div>{node.name}</div>
       </div>
-      <div>{node.name}</div>
+      <div className="nodePrice">
+        {node.price}
+      </div>
     </div>
-
-    <NodeInfo node={node}/>
+    <div>
+      <NodeInfo node={node}/>
+    </div>
 
     <div className="nodeChilds">
       {node.childrens.map((childId, key) =>
         <CreateBranch nodeId={childId} key={key}/>
       )}
     </div>
+  
 
   </div>)
 }

@@ -155,8 +155,9 @@ def createNode(request):
             case 'id': continue
             case 'parentId':
                 newNodeParams[atr] = NodesEl.objects.get(pk= requestedNode[atr])
-            case 'itemGroupId':
-                newNodeParams[atr] = requestedNode[atr].id
+            case 'itemGroupId' | 'ItemUnitId':
+                if atr in requestedNode:
+                    newNodeParams[atr] = requestedNode[atr].id if requestedNode[atr] else None
             case _:
                 newNodeParams[atr] = requestedNode[atr]
     newNode = NodesEl(**newNodeParams)

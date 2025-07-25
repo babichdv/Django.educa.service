@@ -18,7 +18,7 @@ class NodesEl(models.Model):
     id            = models.AutoField(primary_key=True)
     name          = models.TextField(max_length=300, null=True)
     amount        = models.TextField(max_length=100, null=True)
-    price         = models.IntegerField(max_length=10, null=True)
+    price         = models.TextField(max_length=20, null=True)
     # chosenItem    = models.IntegerField(max_length=10, null=True)
 
     itemGroupId   = models.ForeignKey(ItemGroups,
