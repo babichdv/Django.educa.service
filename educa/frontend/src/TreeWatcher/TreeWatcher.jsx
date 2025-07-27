@@ -1,6 +1,7 @@
 import React, { useState, useEffect, act } from 'react';
 import { store, mainUpdate } from '../index.jsx';
 import PopupTableSelect from './PopupTableSelect.jsx';
+import { Icons } from '../images/imageImports.jsx'
 
 const ROOT = {
   nodes:{'-1':{
@@ -139,16 +140,21 @@ function handletoggleExpandNode(node){
   if(!checkHandleBlocked('handletoggleExpandNode')) return;
 
   node.isExpanded = !node.isExpanded;
-  node.childrens.forEach(childId=>{
-    if( !ROOT.nodes[childId] ) { return }
-    ROOT.nodes[childId].active = !ROOT.nodes[childId].active
-  })
-  store.dispatch(mainUpdate());
-  if (!node.isChildLoaded)
-    loadNodes(node.id,3)
-    .then(node.isChildLoaded = true)
+  NodeLoadChildrens(node, node.isExpanded);
 }
+function NodeLoadChildrens(node, isActivateChildrens) {
+    node.childrens.forEach(childId=>{
+      if( !ROOT.nodes[childId] ) { return }
 
+      ROOT.nodes[childId].active = isActivateChildrens; //!ROOT.nodes[childId].active
+
+      
+      if (!node.isChildLoaded)
+        loadNodes(node.id,3)
+      .then(node.isChildLoaded = true)
+    })
+    store.dispatch(mainUpdate());
+  }
 
 function handleEditNode(nodeId) {
   if(!checkHandleBlocked('handleEditNode')) return;
@@ -159,6 +165,9 @@ function handleEditNode(nodeId) {
 
   })
   node.isEditing = true;
+  node.isExpanded = true;
+  NodeLoadChildrens(node, true);
+
   store.dispatch(mainUpdate());
 }
 function handleEditNodeCancel(nodeId) {
@@ -203,7 +212,8 @@ function EditNodeSave(nodeId, extraNode){
 
 function handleDeleteNode(nodeId) {
   if(!checkHandleBlocked('handleDeleteNode')) return;
-  
+  if(nodeId == 0) {alert("Вы не можете удалить корневой узел"); return};
+
   if (window.confirm('Вы уверены, что хотите удалить этот узел?')) {
     let node = ROOT.nodes[nodeId];
 
@@ -228,6 +238,7 @@ function handleRelocateNode(nodeId) {
   RelocationNodeId = nodeId;
   store.dispatch(mainUpdate());
 };
+
 function handleCancelRelocate(){
   if(!checkHandleBlocked('handleCancelRelocate')) return;
   
@@ -276,6 +287,7 @@ let newNodeIdCounter = 1;
 async function handleAddChildNode(nodeId) {
   if(!checkHandleBlocked('handleAddChildNode')) return;
   handlesBlockedForAddNode = true;
+
 
   AddChildNode(nodeId);
   // clearRedoHistory();
@@ -361,7 +373,7 @@ async function HandleAddChildNodeCancel(nodeId) {
 
 
 function handleUndo() {
-  if(checkHandleBlocked('handleUndo')) return;
+  if(!checkHandleBlocked('handleUndo')) return;
   
   let lastAction = actionsHistory.pop();
   
@@ -416,6 +428,15 @@ function handleUndo() {
       EditedNodes[action.parentId] = parentNode;
       EditedNodes[action.node.id] = action.node;
     }break;
+    case 'EditInput':{
+      let futureValues = {}
+      for (let atr in action.oldValues){
+        futureValues[atr] = action.node[atr];
+        action.node[atr] = action.oldValues[atr];
+      }
+      undoHistory.push({EditInput: {node: action.node, futureValues: futureValues }})
+      EditedNodes[action.node.id] = action.node;
+    }break;
   }
   AutosaveNodes();
   store.dispatch(mainUpdate());
@@ -425,7 +446,8 @@ function handleUndo() {
   {Edit: {from:'oldNode', to:'newNode'}},
   {Del: {nodeId:'nodeId', parentId:'nodeId'}}, // Удаление - открепление узла, а потом его потеря при сохранении на сервере
   {Relocate: {from: 'parentId', to: 'endParentId', nodeId:'nodeId'}},
-  {AddChild: {node: 'node', parentId: 'nodeId'}}
+  {AddChild: {node: 'node', parentId: 'nodeId'}},
+  {EditInput: {node: 'node', oldValues: {atr:value} }}
 ]
 /// undoHistory for redo
 [
@@ -435,7 +457,7 @@ function handleUndo() {
   {AddChild:{node: 'node', parentId: 'nodeId'}}
 ]*/
 function handleRedo() {
-  if(checkHandleBlocked('handleRedo')) return;
+  if(!checkHandleBlocked('handleRedo')) return;
   
   let lastAction = undoHistory.pop();
 
@@ -480,6 +502,15 @@ function handleRedo() {
       EditedNodes[action.parentId] = parentNode;
       EditedNodes[action.node.id] = action.node;
     }break;
+    case 'EditInput':{
+      let oldValues = {}
+      for (let atr in action.futureValues){
+        oldValues[atr] = action.node[atr];
+        action.node[atr] = action.futureValues[atr];
+      }
+      actionsHistory.push({EditInput: {node: action.node, oldValues: oldValues }})
+      EditedNodes[action.node.id] = action.node;
+    }
   }
   AutosaveNodes();
   store.dispatch(mainUpdate());
@@ -518,15 +549,24 @@ async function SaveAll() {
   }
 }
 function UIWindow({ children }) {
+
   return(
   <div className='UIWindow'>
-    {isRelocation? <style>{'.tree-node > .nodeInfo:hover { background:rgb(185, 141, 141); }'}</style> :''/*Стиль для выбираемых для relocate узлов*/} 
-    <div className='interface'>
-      <button className='interfaceBtn' onClick={()=>handleCancelRelocate()} disabled={!isRelocation} > Cancel Relocation </button>
-      <button className='interfaceBtn' onClick={()=>handleUndo()} disabled={isRelocation || !(actionsHistory?.length>0) }> Undo </button>
-      <button className='interfaceBtn' onClick={()=>handleRedo()} disabled={isRelocation || !(undoHistory?.length>0) }> Redo </button>
-      <button className='interfaceBtn' onClick={()=>handleSaveAll()} disabled={isRelocation}> Save </button>
-    </div>
+    {isRelocation? <style>{'.tree-node > .nodeInfo:hover { background:rgba(255, 255, 255, 0.5); }'}</style> :''/*Стиль для выбираемых для relocate узлов*/}
+    
+    {isRelocation?
+      <div className='interface'>
+        <button className={`interfaceBtn ${isRelocation?'':'disabled'}`} onClick={()=>handleCancelRelocate()} > <img src={ Icons.getLink('Del') } alt="Cancel relocation" /> </button>
+      </div>
+      :
+      <div className='interface'>
+        <button className={`interfaceBtn ${isRelocation?'disabled':''}`} onClick={()=>handleUndo()} disabled={!(actionsHistory?.length>0) }> <img src={ Icons.getLink('Undo') } alt="Undo" />  </button>
+        <button className={`interfaceBtn ${isRelocation?'disabled':''}`} onClick={()=>handleRedo()} disabled={!(undoHistory?.length>0) }> <img src={ Icons.getLink('Redo') } alt="Redo" /> </button>
+        { autosave?'':
+          <button className='interfaceBtn' onClick={()=>handleSaveAll()} disabled={isRelocation}> <img src={ Icons.getLink('Save') } alt="Save" />  </button>
+        }
+      </div>
+    }
     <div className='UIWindowBody'>
       { children }
     </div>
@@ -538,47 +578,72 @@ function handlerNodeInfo(node) {
   
   if(isRelocation){ NodeRelocate(node) }
 }
-function handlerChoseItemUnit(el, node) {
-  node.ItemUnitId = el.id;
-  node.name = el.name;
-  node.price = el.price;
+function handlerChoseItemUnit(el, node, ItemName) {
+  let oldValuesObj = {}
+
+  for (let atr in oldValuesObj){
+  }
+
+  switch (ItemName) {
+    case 'itemGroupId':
+      oldValuesObj['itemGroupId'] = node['itemGroupId']
+      node['itemGroupId'] = el.id;
+    break;
+    case 'ItemUnitId':
+      ['ItemUnitId', 'name', 'price'].forEach(
+        atr=> oldValuesObj[atr] = node[atr] 
+      )
+      node['ItemUnitId'] = el.id;
+      node['name'] = el.name;
+      node['price'] = el.price;
+    break;
+  }
+
+
+  actionsHistory.push( {EditInput: {node: node, oldValues: oldValuesObj}});
   
   EditedNodes[node.id] = node;
   AutosaveNodes();
   
   store.dispatch(mainUpdate());
 }
-function handlerCleanItemUnit(node) {
-  node.ItemUnitId = null;
+function handlerCleanItemUnit(node, ItemName) {
+  actionsHistory.push( {EditInput: {node: node, oldValues: {ItemName: node[ItemName]} }} ); //  <===
+
+  node[ItemName] = null;
   
   EditedNodes[node.id] = node;
   AutosaveNodes();
 
   store.dispatch(mainUpdate());
 }
+function Buttons(nodeObj){
+  let node = nodeObj.node; 
+  if(node.isCreating) return(
+    <div className="SaveButtons">
+      <div onClick={(event)=>{event.stopPropagation(); HandleAddChildNodeSave  (node.id)}}>Save </div>
+      <div onClick={(event)=>{event.stopPropagation(); HandleAddChildNodeCancel(node.id)}}>Cancel </div>
+    </div>
+  )
+  if(node.isEditing) return(
+    <div className="SaveButtons">
+      <div onClick={(event)=>{event.stopPropagation(); handleEditNodeSave  (node.id)}}>Save </div>
+      <div onClick={(event)=>{event.stopPropagation(); handleEditNodeCancel(node.id)}}>Cancel </div>
+    </div>
+  )
+  return(
+    isRelocation?'':
+    <div className="buttons">
+      <button disabled={isRelocation} onClick={(event)=>{event.stopPropagation(); handleEditNode    (node.id)}}><img src={ Icons.getLink('Edit') } alt="Edit" /> </button>
+      <button disabled={isRelocation} onClick={(event)=>{event.stopPropagation(); handleDeleteNode  (node.id)}}><img src={ Icons.getLink('Del') } alt="Delete" /> </button>
+      <button disabled={isRelocation} onClick={(event)=>{event.stopPropagation(); handleRelocateNode(node.id)}}><img src={ Icons.getLink('Relocate') } alt="Relocate" /> </button>
+      <button disabled={isRelocation} onClick={(event)=>{event.stopPropagation(); handleAddChildNode(node.id)}}><img src={ Icons.getLink('AddChild') } alt="Add_child" /> </button>
+    </div>)
+}
+
 function NodeInfo(nodeObj){
   let node = nodeObj.node;
   if(!node.isExpanded) return '';
-
-  let Buttons = ()=> {
-      if(node.isCreating) return(
-        <div className="buttons">
-          <div onClick={()=>{HandleAddChildNodeSave  (node.id)}}>Save </div>
-          <div onClick={()=>{HandleAddChildNodeCancel(node.id)}}>Cancel </div>
-        </div>)
-      if(node.isEditing) return(
-        <div className="buttons">
-          <div onClick={()=>{handleEditNodeSave  (node.id)}}>Save </div>
-          <div onClick={()=>{handleEditNodeCancel(node.id)}}>Cancel </div>
-        </div>)
-      return(
-        <div className="buttons">
-          <button disabled={isRelocation} onClick={(event)=>{event.stopPropagation(); handleEditNode    (node.id)}}>Edit </button>
-          <button disabled={isRelocation} onClick={(event)=>{event.stopPropagation(); handleDeleteNode  (node.id)}}>Delete </button>
-          <button disabled={isRelocation} onClick={(event)=>{event.stopPropagation(); handleRelocateNode(node.id)}}>Relocate </button>
-          <button disabled={isRelocation} onClick={(event)=>{event.stopPropagation(); handleAddChildNode(node.id)}}>Add_child </button>
-        </div>)
-    }
 
   return( 
   <div className="nodeInfo" onClick={()=>{handlerNodeInfo(node)}}>
@@ -604,15 +669,20 @@ function NodeInfo(nodeObj){
       </tr>
       <tr>
         <td>Фиксировать цену:</td>
-        <td><input type='checkbox'/></td>
+        <td><input type='checkbox' /></td>
       </tr>
       <tr>
         <td>Категория:</td>
-        <td><PopupTableSelect 
-          data={Dictionaries.ItemGroups}
-          value={node.itemGroupId}
-          onChange={ (el)=>{ node.itemGroupId = el.id } }
-          placeholder={ Dictionaries.ItemGroups[node.itemGroupId]?.name || " - " }/> 
+        <td>
+          <PopupTableSelect 
+            data={Dictionaries.ItemGroups}
+            value={node.itemGroupId}
+            onChange={ (el)=>{
+                handlerChoseItemUnit(el, node, 'itemGroupId');
+              }}
+            placeholder={ Dictionaries.ItemGroups[node.itemGroupId]?.name || " - " }>
+          </PopupTableSelect>
+          <div><button onClick={()=>handlerCleanItemUnit(node,'itemGroupId')}> [X] </button> </div>
         </td>
       </tr>
       <tr>
@@ -622,12 +692,12 @@ function NodeInfo(nodeObj){
             data={Dictionaries.ItemUnit}
             value={node.ItemUnitId}
             onChange={ (el)=>{
-              handlerChoseItemUnit(el, node);
+              handlerChoseItemUnit(el, node, 'ItemUnitId');
             }}
             placeholder={ Dictionaries.ItemUnit[node.ItemUnitId]?.name || " - " }>
           </PopupTableSelect>
           {node.ItemUnitId?
-            <div><button onClick={()=>handlerCleanItemUnit(node)}> [X] </button> {node['name']} </div>
+            <div><button onClick={()=>handlerCleanItemUnit(node,'ItemUnitId')}> [X] </button> {node['name']} </div>
             :
             node.isEditing || node.isCreating?
               <input type='text' id={'node'+node.id+'name'} defaultValue={node['editing'+'name']} onChange={e => node['editing'+'name'] = e.target.value} />
@@ -637,7 +707,6 @@ function NodeInfo(nodeObj){
         </td>
       </tr>
     </tbody></table>
-    <Buttons/>
   </div>)
 } 
 
@@ -648,7 +717,7 @@ function CreateBranch (nodeId){
   if(!node) return '';              // На конечные ветки
   
   if(nodeId.nodeId == '-1') return (// Первая ветка
-    <div className='tree-node active'>
+    <div className=''>
       {node.childrens.map((childId, key) =>
         <CreateBranch nodeId={childId} key={key}/>
       )}
@@ -656,18 +725,20 @@ function CreateBranch (nodeId){
   )
 
   return(
-  <div className={`tree-node ${node.active || node.isCreating ? 'active' : ''}`}>
+  <div className={`tree-node ${node.active || node.isCreating ? '' : 'disabled'}`}>
     <div className="nodeMain" onClick={()=>handletoggleExpandNode(node)}>
       <div className="nodeText"> 
         <div>
           {node.isExpanded? "−" : "+"}
         </div>
         <div>{node.name}</div>
+        <Buttons node={node}/>
       </div>
       <div className="nodePrice">
         {node.price}
       </div>
     </div>
+
     <div>
       <NodeInfo node={node}/>
     </div>

@@ -10,47 +10,84 @@
 
 .tree-node  {
     padding: 0 0 0 15px;
-    background: #5f9ea0;
+    background: #52b0b3;
     cursor: default;
-    display: none;
-}
-.active {
-    display: block;
 }
 .nodeMain{
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border: 1px solid #00ddff;
+    border: 3px solid #00f7ff;
+    width: 550px;
+    height: 50px;
+    border-radius: 15px;
+    margin-left: -15px;
+    margin-top: 0px;
 }
 .nodePrice{
     padding: 10px;
+    border: 3px solid #ffffff6e;
+    width: 45px;
+    text-align: center;
+    border-radius: 20px;
 }
-/* .nodeText{
-    /* background-image: radial-gradient(circle 100px, transparent 50%, #00ddff 100%); */
-    /* background-color: #000000; */
-/* } */
+.nodeInfo{
+    border-left: 3px solid #00f7ff;
+    border-right: 3px solid #00f7ff;
+    width: fit-content;
+    border-radius: 15px;
+}
+.nodeText{
+    align-items: center;
+    display: flex;
+}
 .nodeText > *{
     display: inline-block;
     padding: 2px 5px 2px 5px;
 }
+.buttons{
+    opacity: 0%;
+    margin-left: 50px;
+}
+.nodeMain:hover .buttons{
+    opacity: 100%;
+}
 .buttons > *{
+    background: bottom;
     display: inline-block;
     border: 1px solid #00ddff;
-    padding: 2px;
+    border: none;
 }
+.buttons img {
+    width: 30px;
+}
+.SaveButtons{
+    margin-left: 50px;
+}
+.SaveButtons img {
+    width: 30px;
+}
+
+
 .interface{
-    height: 5vh;
     display: flex;
+    background-color: #009a9f;
+    height: 66px;
 }
 .interfaceBtn{
     display: inline-block;
-    background-color: aquamarine;
-    border: 1px solid black;
-    padding: 4px;
-    margin: 5px 5px 5px 5px;
+    background-color: #009a9f;
+    border: none;
+    /* border: 1px solid black; */
+    /* padding: 4px; */
+    /* margin: 5px 5px 5px 5px; */
 }
 .UIWindowBody{
     height: 95vh;
     overflow-y: scroll;
+    height: calc(100vh - 66px);
+    background-color: #009a9f;
+}
+.disabled {
+    display: none;
 }
