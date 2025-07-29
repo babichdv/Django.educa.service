@@ -22,7 +22,7 @@ def getNode(request):
         
     return JsonResponse(nodeMassive, safe=False, json_dumps_params={'ensure_ascii': False})
 
-NodeAttributes = [ 'id', 'name', 'amount', 'isDeleted', 'itemGroupId', 'parentId', 'ItemUnitId', 'price' ]
+NodeAttributes = [ 'id', 'name', 'amount', 'isDeleted', 'itemGroupId', 'parentId', 'ItemUnitId', 'price', 'isPriceFixed' ]
 
 def endBranchesGrow(nodeMassive):
     newEndBranches=[]

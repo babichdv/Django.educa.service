@@ -9,20 +9,22 @@
 }
 
 .tree-node  {
-    padding: 0 0 0 15px;
-    background: #52b0b3;
+    padding: 0 0 0 40px;
+    background: #eaf3f3;
     cursor: default;
+    margin-top: -1px;
 }
 .nodeMain{
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border: 3px solid #00f7ff;
+    border: 3px solid #006b6f;
     width: 550px;
     height: 50px;
     border-radius: 15px;
-    margin-left: -15px;
+    margin-left: -40px;
     margin-top: 0px;
+    background-color: #00b3b9;
 }
 .nodePrice{
     padding: 10px;
@@ -30,10 +32,29 @@
     width: 45px;
     text-align: center;
     border-radius: 20px;
+    margin-right: 2px;
 }
+.nodePrice input{
+    width: inherit;
+    padding: 0;
+    margin: 0;
+    background-color: #00b3b9;
+    border: none;
+    text-align-last: center;
+}
+
+.nodePrice input::-webkit-outer-spin-button,
+.nodePrice input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.nodePrice input {
+    -moz-appearance: textfield;
+}
+
 .nodeInfo{
-    border-left: 3px solid #00f7ff;
-    border-right: 3px solid #00f7ff;
+    border-left: 3px solid #009a9f;
+    border-right: 3px solid #009a9f;
     width: fit-content;
     border-radius: 15px;
 }
@@ -59,13 +80,15 @@
     border: none;
 }
 .buttons img {
-    width: 30px;
+    width: 35px;
 }
 .SaveButtons{
     margin-left: 50px;
+    display: flex;
 }
 .SaveButtons img {
-    width: 30px;
+    width: 35px;
+    margin-left: 10px;
 }
 
 
@@ -85,8 +108,8 @@
 .UIWindowBody{
     height: 95vh;
     overflow-y: scroll;
-    height: calc(100vh - 66px);
-    background-color: #009a9f;
+    height: calc(100vh - 66px);    
+    background: #eaf3f3;
 }
 .disabled {
     display: none;

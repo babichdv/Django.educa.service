@@ -313,6 +313,8 @@ function AddChildNode(nodeId) {
 
     isDeleted: false,
 
+    price: 0,
+    isPriceFixed: false,
     itemGroupId: 0,
     ItemUnitId: 0,
   }
@@ -428,14 +430,20 @@ function handleUndo() {
       EditedNodes[action.parentId] = parentNode;
       EditedNodes[action.node.id] = action.node;
     }break;
-    case 'EditInput':{
+    case 'EditInputs':{
       let futureValues = {}
-      for (let atr in action.oldValues){
-        futureValues[atr] = action.node[atr];
-        action.node[atr] = action.oldValues[atr];
+
+      for (let nodeId in action.oldValues){
+        let node = ROOT.nodes[nodeId];
+
+        futureValues[node.id] = {}
+        for (let atr in action.oldValues[nodeId]){
+          futureValues[nodeId][atr] = node[atr];
+          node[atr] = action.oldValues[nodeId][atr];
+        }
+        EditedNodes[nodeId] = node;
       }
-      undoHistory.push({EditInput: {node: action.node, futureValues: futureValues }})
-      EditedNodes[action.node.id] = action.node;
+      undoHistory.push({EditInput: {futureValues: futureValues }})
     }break;
   }
   AutosaveNodes();
@@ -447,7 +455,7 @@ function handleUndo() {
   {Del: {nodeId:'nodeId', parentId:'nodeId'}}, // Удаление - открепление узла, а потом его потеря при сохранении на сервере
   {Relocate: {from: 'parentId', to: 'endParentId', nodeId:'nodeId'}},
   {AddChild: {node: 'node', parentId: 'nodeId'}},
-  {EditInput: {node: 'node', oldValues: {atr:value} }}
+  {EditInputs: {oldValues: {node1.Id:atr:value} }}
 ]
 /// undoHistory for redo
 [
@@ -455,6 +463,7 @@ function handleUndo() {
   {Del:{nodeId: 'nodeId', parentId:'parentId'}},
   {Relocate:{oldParentId: action.from, futureParentId: action.to}},
   {AddChild:{node: 'node', parentId: 'nodeId'}}
+  {EditInputs: {futureValues: {node1.Id:atr:value} }}
 ]*/
 function handleRedo() {
   if(!checkHandleBlocked('handleRedo')) return;
@@ -502,15 +511,21 @@ function handleRedo() {
       EditedNodes[action.parentId] = parentNode;
       EditedNodes[action.node.id] = action.node;
     }break;
-    case 'EditInput':{
+    case 'EditInputs':{
       let oldValues = {}
-      for (let atr in action.futureValues){
-        oldValues[atr] = action.node[atr];
-        action.node[atr] = action.futureValues[atr];
+
+      for (let nodeId in action.futureValues){
+        let node = ROOT.nodes[nodeId];
+
+        oldValues[nodeId] = {}
+        for (let atr in action.futureValues[nodeId]){
+          oldValues[nodeId][atr] = node[atr];
+          node[atr] = action.futureValues[nodeId][atr];
+        }
+        EditedNodes[nodeId] = node;
       }
-      actionsHistory.push({EditInput: {node: action.node, oldValues: oldValues }})
-      EditedNodes[action.node.id] = action.node;
-    }
+      undoHistory.push({EditInputs: { oldValues: oldValues }})
+    }break;
   }
   AutosaveNodes();
   store.dispatch(mainUpdate());
@@ -552,7 +567,7 @@ function UIWindow({ children }) {
 
   return(
   <div className='UIWindow'>
-    {isRelocation? <style>{'.tree-node > .nodeInfo:hover { background:rgba(255, 255, 255, 0.5); }'}</style> :''/*Стиль для выбираемых для relocate узлов*/}
+    {isRelocation? <style>{'.tree-node > .nodeInfo:hover { background: #21c7c7; }'}</style> :''/*Стиль для выбираемых для relocate узлов*/}
     
     {isRelocation?
       <div className='interface'>
@@ -579,36 +594,35 @@ function handlerNodeInfo(node) {
   if(isRelocation){ NodeRelocate(node) }
 }
 function handlerChoseItemUnit(el, node, ItemName) {
-  let oldValuesObj = {}
-
-  for (let atr in oldValuesObj){
-  }
-
+  let oldValuesObj = {} 
+  
   switch (ItemName) {
     case 'itemGroupId':
-      oldValuesObj['itemGroupId'] = node['itemGroupId']
-      node['itemGroupId'] = el.id;
+      oldValuesObj.itemGroupId = node.itemGroupId;
+      node.itemGroupId = el.id;
     break;
     case 'ItemUnitId':
-      ['ItemUnitId', 'name', 'price'].forEach(
-        atr=> oldValuesObj[atr] = node[atr] 
-      )
-      node['ItemUnitId'] = el.id;
-      node['name'] = el.name;
-      node['price'] = el.price;
+      oldValuesObj.ItemUnitId = node.ItemUnitId;
+      oldValuesObj.name = node.name;
+      oldValuesObj.price = node.price;
+
+      node.ItemUnitId = el.id;
+      node.name = el.name;
+      node.price = el.price;
     break;
   }
 
-
-  actionsHistory.push( {EditInput: {node: node, oldValues: oldValuesObj}});
+  let oldValues = PriceUpdate(node, node.price);
   
-  EditedNodes[node.id] = node;
+  oldValues[node.id] = oldValuesObj;
+
+  actionsHistory.push( {EditInputs: {oldValues: oldValues }});
   AutosaveNodes();
   
   store.dispatch(mainUpdate());
 }
 function handlerCleanItemUnit(node, ItemName) {
-  actionsHistory.push( {EditInput: {node: node, oldValues: {ItemName: node[ItemName]} }} ); //  <===
+  actionsHistory.push( {EditInputs: {oldValues: {[node.id]: {[ItemName]: node[ItemName]}}}});
 
   node[ItemName] = null;
   
@@ -617,18 +631,67 @@ function handlerCleanItemUnit(node, ItemName) {
 
   store.dispatch(mainUpdate());
 }
+function handlerPriceEdit(e, node){
+  let oldValues = PriceUpdate(node, e.target.value);
+
+  actionsHistory.push( {EditInputs: {oldValues: oldValues}});
+  
+  AutosaveNodes();
+  store.dispatch(mainUpdate());
+}
+function handlerPriceFixToggle(e, node){
+  
+  node.isPriceFixed = e.target.checked;
+
+  let oldValues = PriceUpdate(node, node.isPriceFixed? document.getElementById('node'+node.id+'price').value : null);
+  actionsHistory.push( {EditInputs: {oldValues: oldValues}});
+    
+  AutosaveNodes();
+  store.dispatch(mainUpdate());
+}
+/** 
+ * @param {nodeObj} node 
+ * @returns {object} { nodeId: oldValue }
+ */
+function PriceUpdate(node, newPrice) {
+  let oldValues = { [node.id]: {price: node.price} }
+
+  if (!node.ItemUnitId && !node.isPriceFixed) {
+    node.price = 0;
+    node.childrens.forEach(childId=>{
+      let childNode = ROOT.nodes[childId];
+      node.price += childNode.price? Number(childNode.price) : 0;
+    })
+  }
+  if(newPrice) node.price = newPrice;
+
+  
+  let parentNode = ROOT.nodes[node.parentId];
+  if(node.id != 0 && !parentNode.isPriceFixed) {
+    let parentOldValues = PriceUpdate(parentNode);
+    for(let id in parentOldValues){
+      oldValues[id] = parentOldValues[id];
+    }
+  }
+  document.getElementById('node'+node.id+'price').value = node.price;
+  
+  EditedNodes[node.id] = node;
+
+  return oldValues; 
+}
+
 function Buttons(nodeObj){
   let node = nodeObj.node; 
   if(node.isCreating) return(
     <div className="SaveButtons">
-      <div onClick={(event)=>{event.stopPropagation(); HandleAddChildNodeSave  (node.id)}}>Save </div>
-      <div onClick={(event)=>{event.stopPropagation(); HandleAddChildNodeCancel(node.id)}}>Cancel </div>
+      <div onClick={(event)=>{event.stopPropagation(); HandleAddChildNodeCancel(node.id)}}><img src={ Icons.getLink('Del') } alt="Cancel" /> </div>
+      <div onClick={(event)=>{event.stopPropagation(); HandleAddChildNodeSave  (node.id)}}><img src={ Icons.getLink('ok') } alt="Save" />    </div>
     </div>
   )
   if(node.isEditing) return(
     <div className="SaveButtons">
-      <div onClick={(event)=>{event.stopPropagation(); handleEditNodeSave  (node.id)}}>Save </div>
-      <div onClick={(event)=>{event.stopPropagation(); handleEditNodeCancel(node.id)}}>Cancel </div>
+      <div onClick={(event)=>{event.stopPropagation(); handleEditNodeCancel(node.id)}}><img src={ Icons.getLink('Del') } alt="Cancel" /></div>
+      <div onClick={(event)=>{event.stopPropagation(); handleEditNodeSave  (node.id)}}><img src={ Icons.getLink('ok') } alt="Save" />   </div>
     </div>
   )
   return(
@@ -656,20 +719,18 @@ function NodeInfo(nodeObj){
           }</td> 
         </tr>
       )}
-      <tr>
+      {/* <tr>
         <td>Цена:</td>
         <td>{ node.ItemUnitId?
             <div> {Dictionaries.ItemUnit[node.ItemUnitId]?.price} </div>
             :
-            node.isEditing || node.isCreating?
-              <input type='number' id={'node'+node.id+'price'} defaultValue={node['editing'+'price']} onChange={e => node['editing'+'price'] = e.target.value} />
-              :
-              node['price'] 
+            node.isCreating?'':
+              <input type='number' id={'node'+node.id+'price'} defaultValue={node.price} onChange={e => {handlerPriceEdit(e, node); }} />
         }</td>
-      </tr>
+      </tr> */}
       <tr>
         <td>Фиксировать цену:</td>
-        <td><input type='checkbox' /></td>
+        <td><input type='checkbox' id={'node'+node.id+'isPriceFixed'} checked={node.isPriceFixed} onChange={e=>handlerPriceFixToggle(e,node)}/></td>
       </tr>
       <tr>
         <td>Категория:</td>
@@ -735,13 +796,20 @@ function CreateBranch (nodeId){
         <Buttons node={node}/>
       </div>
       <div className="nodePrice">
-        {node.price}
+        {/* {node.price} */}
+        {node.isCreating?'':
+          <input 
+            type='number' 
+            id={'node'+node.id+'price'} 
+            defaultValue={node.price} 
+            onChange={e => { handlerPriceEdit(e, node); }}
+            onClick={e => e.stopPropagation()}
+          />
+        }
       </div>
     </div>
 
-    <div>
-      <NodeInfo node={node}/>
-    </div>
+    <NodeInfo node={node}/>
 
     <div className="nodeChilds">
       {node.childrens.map((childId, key) =>
