@@ -14,6 +14,7 @@ import React, { StrictMode } from 'react';
   import Auth        from './auth/auth.jsx';
   import TreeWatcher from './TreeWatcher/TreeWatcher.jsx';
   import MainPage    from './mainPage/mainPage.jsx';
+  import TableEditor    from './TreeWatcher/TableEditor.jsx';
 
 const state = new class {
   constructor() {
@@ -60,16 +61,17 @@ export const store = createStore(counterSlice.reducer, applyMiddleware(thunk));
 
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
-
 const stateChoser = function(state) {
   console.log(state);
   
   switch (state) {
-    case 'auth'       : return <Auth stateClass={state}/> ; break;
-    case 'mqtt'       : return <Api_react/>               ; break;
-    case 'chats'      : return <Chats/>                   ; break;
-    case 'TreeWatcher': return <TreeWatcher/>             ; break;
-    default: return <MainPage stateClass={state}/>; break;
+    case 'auth':        return <Auth stateClass={state} />;
+    case 'mqtt':        return <Api_react />;
+    case 'chats':       return <Chats />;
+    case 'TreeWatcher': return <TreeWatcher stateClass={state} />;
+    case 'ItemGroups':  return <TreeWatcher stateClass={state} body={<TableEditor tableType="ItemGroups" />} />;
+    case 'ItemUnit':    return <TreeWatcher stateClass={state} body={<TableEditor tableType="ItemUnit" />} />;
+    default:            return <MainPage    stateClass={state} />;
   }
 }
 

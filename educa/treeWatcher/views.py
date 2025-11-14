@@ -1,6 +1,8 @@
 from django.http import JsonResponse
-from treeWatcher.models import NodesEl, ItemGroups, ItemUnit
+from treeWatcher.models import NodesEl, ItemGroups, ItemUnit, MeasureUnit
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+
 import json
 from django.db.models import Q
 
@@ -174,3 +176,128 @@ def getDictionaries(request):
     Dictionaries["ItemGroups"] = {str(item['id']): item for item in ItemGroups.objects.all().values()}
 
     return JsonResponse( Dictionaries, safe=False, json_dumps_params={'ensure_ascii': False})
+
+@csrf_exempt
+@require_http_methods(["GET", "POST", "PUT", "DELETE"])
+def item_groups_view(request):
+    try:
+        if request.method == 'GET':
+            # Получение списка всех групп
+            groups = list(ItemGroups.objects.values())
+            return JsonResponse(groups, safe=False)
+            
+        data = json.loads(request.body)
+        
+        if request.method == 'POST':
+            # Создание новой группы
+            group = ItemGroups.objects.create(
+                name=data.get('name', ''),
+                orderValue=data.get('orderValue', 0)
+            )
+            return JsonResponse({'status': 'created', 'id': group.id})
+            
+        elif request.method == 'PUT':
+            # Обновление существующей группы
+            group = ItemGroups.objects.get(id=data['id'])
+            group.name = data.get('name', group.name)
+            group.orderValue = data.get('orderValue', group.orderValue)
+            group.save()
+            return JsonResponse({'status': 'updated', 'id': group.id})
+            
+        elif request.method == 'DELETE':
+            # Удаление группы
+            ItemGroups.objects.get(id=data['id']).delete()
+            return JsonResponse({'status': 'deleted'})
+            
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+@csrf_exempt
+@require_http_methods(["GET", "POST", "PUT", "DELETE"])
+def item_units_view(request):
+    try:
+        if request.method == 'GET':
+            # Получение списка всех единиц товаров
+            units = list(ItemUnit.objects.select_related('measureUnit', 'dependence').values(
+                'id', 'name', 'price', 'orderValue',
+                'measureUnit_id', 'dependence_id',
+                measureUnit_name='measureUnit__name',
+                dependence_name='dependence__name'
+            ))
+            return JsonResponse(units, safe=False)
+            
+        data = json.loads(request.body)
+        
+        if request.method == 'POST':
+            # Создание новой единицы товара
+            unit = ItemUnit.objects.create(
+                name=data.get('name', ''),
+                price=data.get('price', 0),
+                orderValue=data.get('orderValue', 0),
+                measureUnit_id=data.get('measureUnit'),
+                dependence_id=data.get('dependence')
+            )
+            return JsonResponse({'status': 'created', 'id': unit.id})
+            
+        elif request.method == 'PUT':
+            # Обновление существующей единицы товара
+            unit = ItemUnit.objects.get(id=data['id'])
+            unit.name = data.get('name', unit.name)
+            unit.price = data.get('price', unit.price)
+            unit.orderValue = data.get('orderValue', unit.orderValue)
+            unit.measureUnit_id = data.get('measureUnit', unit.measureUnit_id)
+            unit.dependence_id = data.get('dependence', unit.dependence_id)
+            unit.save()
+            return JsonResponse({'status': 'updated', 'id': unit.id})
+            
+        elif request.method == 'DELETE':
+            # Удаление единицы товара
+            ItemUnit.objects.get(id=data['id']).delete()
+            return JsonResponse({'status': 'deleted'})
+            
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+@csrf_exempt
+@require_http_methods(["GET", "POST", "PUT", "DELETE"])
+def measure_units_view(request):
+    try:
+        if request.method == 'GET':
+            # Получение списка всех единиц измерения
+            units = list(MeasureUnit.objects.values('id', 'name'))
+            return JsonResponse(units, safe=False)
+            
+        data = json.loads(request.body)
+        
+        if request.method == 'POST':
+            # Создание новой единицы измерения
+            unit = MeasureUnit.objects.create(
+                name=data.get('name', '')
+            )
+            return JsonResponse({'status': 'created', 'id': unit.id})
+            
+        elif request.method == 'PUT':
+            # Обновление существующей единицы измерения
+            unit = MeasureUnit.objects.get(id=data['id'])
+            unit.name = data.get('name', unit.name)
+            unit.save()
+            return JsonResponse({'status': 'updated', 'id': unit.id})
+            
+        elif request.method == 'DELETE':
+            # Удаление единицы измерения
+            MeasureUnit.objects.get(id=data['id']).delete()
+            return JsonResponse({'status': 'deleted'})
+            
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+# Дополнительные views для связанных данных (select-полей)
+@csrf_exempt
+def measureunits_list(request):
+    units = list(MeasureUnit.objects.values('id', 'name'))
+    return JsonResponse(units, safe=False)
+
+@csrf_exempt
+def itemgroups_list(request):
+    groups = list(ItemGroups.objects.values('id', 'name'))
+    return JsonResponse(groups, safe=False)

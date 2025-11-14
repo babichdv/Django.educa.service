@@ -11,6 +11,11 @@ class ItemUnit(models.Model):
     name          = models.TextField(max_length=300, null=True)
     price         = models.IntegerField(max_length=10, null=True)
     measureUnit   = models.IntegerField(max_length=10, null=True)
+    dependence    = models.ForeignKey(ItemGroups,
+                                      verbose_name='category',
+                                      related_name='units',
+                                      null=True, blank=True,
+                                      on_delete=models.CASCADE)
     
     orderValue    = models.IntegerField(max_length=10, null=True)
 
@@ -45,3 +50,7 @@ class NodesEl(models.Model):
     def __str__(self):
         return self.name
 
+class MeasureUnit(models.Model):
+    id            = models.AutoField(primary_key=True)
+    name          = models.TextField(max_length=300, null=True)
+    

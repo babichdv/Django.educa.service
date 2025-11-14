@@ -1,116 +1,148 @@
-*{  margin: 0;
-    font: 1em sans-serif;
-}
-.treeMain{
-    padding: 10px 0px 10px 10px;
-    background: #406668;
-    height: auto;
-    margin-right: 3px;
+/* Общие стили */
+* {
+  margin: 0;
+  font: 1em sans-serif;
 }
 
-.tree-node  {
-    padding: 0 0 0 40px;
-    background: #eaf3f3;
-    cursor: default;
-    margin-top: -1px;
-}
-.nodeMain{
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border: 3px solid #006b6f;
-    width: 550px;
-    height: 50px;
-    border-radius: 15px;
-    margin-left: -40px;
-    margin-top: 0px;
-    background-color: #00b3b9;
-}
-.nodePrice{
-    padding: 10px;
-    border: 3px solid #ffffff6e;
-    width: 45px;
-    text-align: center;
-    border-radius: 20px;
-    margin-right: 2px;
-}
-.nodePrice input{
-    width: inherit;
-    padding: 0;
-    margin: 0;
-    background-color: #00b3b9;
-    border: none;
-    text-align-last: center;
+/* Стили для таблицы */
+.tree-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #eaf3f3;
 }
 
-.nodePrice input::-webkit-outer-spin-button,
-.nodePrice input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-.nodePrice input {
-    -moz-appearance: textfield;
+.tree-table th, .tree-table td {
+  padding: 8px;
+  border: 1px solid #006b6f;
+  text-align: left;
 }
 
-.nodeInfo{
-    border-left: 3px solid #009a9f;
-    border-right: 3px solid #009a9f;
-    width: fit-content;
-    border-radius: 15px;
+.tree-table th {
+  background-color: #406668;
+  color: white;
+  position: sticky;
+  top: 0;
 }
-.nodeText{
-    align-items: center;
-    display: flex;
+
+.tree-row {
+  background-color: #00b3b9;
+  cursor: default;
 }
-.nodeText > *{
-    display: inline-block;
-    padding: 2px 5px 2px 5px;
+
+.tree-row:hover {
+  background-color: #00ddff;
 }
-.buttons{
-    opacity: 0%;
-    margin-left: 50px;
+
+/* Стили для ячеек */
+.tree-table td:first-child {
+  text-align: center;
+  cursor: pointer;
+  width: 30px;
 }
-.nodeMain:hover .buttons{
-    opacity: 100%;
+
+.node-name {
+  display: flex;
+  align-items: center;
 }
-.buttons > *{
-    background: bottom;
-    display: inline-block;
-    border: 1px solid #00ddff;
-    border: none;
+
+/* Стили для цены и ввода */
+.tree-table input[type="number"] {
+  width: 60px;
+  padding: 5px;
+  background-color: #00b3b9;
+  border: 1px solid #ffffff6e;
+  border-radius: 10px;
+  text-align: center;
 }
+
+.tree-table input[type="number"]::-webkit-outer-spin-button,
+.tree-table input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.tree-table input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Стили для кнопок */
+.buttons {
+  opacity: 0%;
+  margin-left: 10px;
+  display: flex;
+}
+
+.tree-row:hover .buttons {
+  opacity: 100%;
+}
+
+.buttons > * {
+  background: transparent;
+  border: none;
+  padding: 0 5px;
+}
+
 .buttons img {
-    width: 35px;
+  width: 33px;
+  height: 33px;
+}
+
+/* Отступы для вложенности */
+.tree-table td:nth-child(2) {
+  padding-left: 20px;
+}
+
+/* Состояния */
+.disabled {
+  display: none;
+}
+
+/* Прокрутка и общие стили интерфейса */
+.UIWindowBody {
+  height: calc(100vh - 66px);
+  overflow-y: auto;
+  background: #eaf3f3;
+}
+
+.interface {
+  display: flex;
+  background-color: #009a9f;
+  height: 66px;
+}
+
+.interfacePages {
+  display: flex;
+}
+
+.interfacePages div {
+  padding: 10px 20px 10px;
+  margin: 0 0 0 20px;
+  background: #009a9f;
+  border-radius: 20px 0px 0 0;
+}
+
+.interfaceBtn {
+  display: inline-block;
+  background-color: #009a9f;
+  border: none;
 }
 .SaveButtons{
-    margin-left: 50px;
-    display: flex;
+  display: flex;
 }
-.SaveButtons img {
-    width: 35px;
-    margin-left: 10px;
+.SaveButtons img{
+  height: 40px;
 }
-
-
-.interface{
-    display: flex;
-    background-color: #009a9f;
-    height: 66px;
+.select-list{
+  display: flex;
+  align-items: center;
 }
-.interfaceBtn{
-    display: inline-block;
-    background-color: #009a9f;
-    border: none;
-    /* border: 1px solid black; */
-    /* padding: 4px; */
-    /* margin: 5px 5px 5px 5px; */
+.select-cross {
+  background: #888;
+  height: 38px;
+  width: 38px;
+  margin-left: -5px;
+  z-index: 2;
 }
-.UIWindowBody{
-    height: 95vh;
-    overflow-y: scroll;
-    height: calc(100vh - 66px);    
-    background: #eaf3f3;
-}
-.disabled {
-    display: none;
+.select-cross img{
+  width: inherit;
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, act } from 'react';
-import { store, mainUpdate } from '../index.jsx';
 import PopupTableSelect from './PopupTableSelect.jsx';
-import { Icons } from '../images/imageImports.jsx'
+import { Icons } from '../images/imageImports.jsx';
+import { store, set, mainUpdate } from '../index.jsx';
 
 const ROOT = {
   nodes:{'-1':{
@@ -109,10 +109,18 @@ async function loadDictionaries() {
     // body: formData
   });
   Dictionaries = await response.json();
-  console.log(Dictionaries);
+  // console.log(Dictionaries);
+  Dictionaries.filterUnit = (itemGroupId)=>{
+    if(!itemGroupId) return Dictionaries.ItemUnit
+
+    let filteredUnits = {}
+    for (let i in Dictionaries.ItemUnit){
+      if(Dictionaries.ItemUnit[i].dependence_id == itemGroupId)
+        filteredUnits[i] = Dictionaries.ItemUnit[i]
+    }
+  }
   
 }
-
 
 /**
  * @param {*} parent - object or id
@@ -138,6 +146,7 @@ function clearRedoHistory() {
 
 function handletoggleExpandNode(node){
   if(!checkHandleBlocked('handletoggleExpandNode')) return;
+  if(node.childrens.length < 1) return;
 
   node.isExpanded = !node.isExpanded;
   NodeLoadChildrens(node, node.isExpanded);
@@ -567,21 +576,15 @@ function UIWindow({ children }) {
 
   return(
   <div className='UIWindow'>
-    {isRelocation? <style>{'.tree-node > .nodeInfo:hover { background: #21c7c7; }'}</style> :''/*Стиль для выбираемых для relocate узлов*/}
-    
-    {isRelocation?
-      <div className='interface'>
-        <button className={`interfaceBtn ${isRelocation?'':'disabled'}`} onClick={()=>handleCancelRelocate()} > <img src={ Icons.getLink('Del') } alt="Cancel relocation" /> </button>
+    <div className='UIWindowHeader'>
+      <div className='interfacePages'>
+        <div onClick={() => { store.dispatch(set("TreeWatcher")); store.dispatch(mainUpdate()) }}>Главная</div>
+        <div onClick={() => { store.dispatch(set("ItemGroups")); store.dispatch(mainUpdate()) }}>Справочники</div>
+        <div onClick={() => { store.dispatch(set("ItemUnit")); store.dispatch(mainUpdate()) }}>Детали</div>
+        <div>Шаблоны</div>
       </div>
-      :
-      <div className='interface'>
-        <button className={`interfaceBtn ${isRelocation?'disabled':''}`} onClick={()=>handleUndo()} disabled={!(actionsHistory?.length>0) }> <img src={ Icons.getLink('Undo') } alt="Undo" />  </button>
-        <button className={`interfaceBtn ${isRelocation?'disabled':''}`} onClick={()=>handleRedo()} disabled={!(undoHistory?.length>0) }> <img src={ Icons.getLink('Redo') } alt="Redo" /> </button>
-        { autosave?'':
-          <button className='interfaceBtn' onClick={()=>handleSaveAll()} disabled={isRelocation}> <img src={ Icons.getLink('Save') } alt="Save" />  </button>
-        }
-      </div>
-    }
+    </div>
+
     <div className='UIWindowBody'>
       { children }
     </div>
@@ -622,8 +625,8 @@ function handlerChoseItemUnit(el, node, ItemName) {
   store.dispatch(mainUpdate());
 }
 function handlerCleanItemUnit(node, ItemName) {
+  
   actionsHistory.push( {EditInputs: {oldValues: {[node.id]: {[ItemName]: node[ItemName]}}}});
-
   node[ItemName] = null;
   
   EditedNodes[node.id] = node;
@@ -660,7 +663,7 @@ function PriceUpdate(node, newPrice) {
     node.price = 0;
     node.childrens.forEach(childId=>{
       let childNode = ROOT.nodes[childId];
-      node.price += childNode.price? Number(childNode.price) : 0;
+      node.price += childNode.price? Number(childNode.price)*Number(childNode.amount) : 0;
     })
   }
   if(newPrice) node.price = newPrice;
@@ -704,127 +707,153 @@ function Buttons(nodeObj){
     </div>)
 }
 
-function NodeInfo(nodeObj){
-  let node = nodeObj.node;
-  if(!node.isExpanded) return '';
-
-  return( 
-  <div className="nodeInfo" onClick={()=>{handlerNodeInfo(node)}}>
-    <table className="nodeInfoAttrs"><tbody>
-      {Dict.nodeAttributionsToShow.map((atr, key)=>
-        <tr key={key}>
-          <td>{ Dict.upFirstLet(Dict.rus(atr)) +': ' }</td>
-          <td>{ node.isEditing || node.isCreating?         
-            <input type='text' id={'node'+node.id+atr} defaultValue={node['editing'+atr]} onChange={e => node['editing'+atr] = e.target.value} />  :  node[atr] 
-          }</td> 
-        </tr>
-      )}
-      {/* <tr>
-        <td>Цена:</td>
-        <td>{ node.ItemUnitId?
-            <div> {Dictionaries.ItemUnit[node.ItemUnitId]?.price} </div>
-            :
-            node.isCreating?'':
-              <input type='number' id={'node'+node.id+'price'} defaultValue={node.price} onChange={e => {handlerPriceEdit(e, node); }} />
-        }</td>
-      </tr> */}
-      <tr>
-        <td>Фиксировать цену:</td>
-        <td><input type='checkbox' id={'node'+node.id+'isPriceFixed'} checked={node.isPriceFixed} onChange={e=>handlerPriceFixToggle(e,node)}/></td>
-      </tr>
-      <tr>
-        <td>Категория:</td>
-        <td>
-          <PopupTableSelect 
-            data={Dictionaries.ItemGroups}
-            value={node.itemGroupId}
-            onChange={ (el)=>{
-                handlerChoseItemUnit(el, node, 'itemGroupId');
-              }}
-            placeholder={ Dictionaries.ItemGroups[node.itemGroupId]?.name || " - " }>
-          </PopupTableSelect>
-          <div><button onClick={()=>handlerCleanItemUnit(node,'itemGroupId')}> [X] </button> </div>
-        </td>
-      </tr>
-      <tr>
-        <td>Продукт:</td>
-        <td>
-          <PopupTableSelect 
-            data={Dictionaries.ItemUnit}
-            value={node.ItemUnitId}
-            onChange={ (el)=>{
-              handlerChoseItemUnit(el, node, 'ItemUnitId');
-            }}
-            placeholder={ Dictionaries.ItemUnit[node.ItemUnitId]?.name || " - " }>
-          </PopupTableSelect>
-          {node.ItemUnitId?
-            <div><button onClick={()=>handlerCleanItemUnit(node,'ItemUnitId')}> [X] </button> {node['name']} </div>
-            :
-            node.isEditing || node.isCreating?
-              <input type='text' id={'node'+node.id+'name'} defaultValue={node['editing'+'name']} onChange={e => node['editing'+'name'] = e.target.value} />
-              :
-              node['name'] 
-          }
-        </td>
-      </tr>
-    </tbody></table>
-  </div>)
-} 
-
-
-
-function CreateBranch (nodeId){
-  const node = ROOT.nodes[nodeId.nodeId];
-  if(!node) return '';              // На конечные ветки
+function createNodesOrderToShow(nodeId) {
+  const node = ROOT.nodes[nodeId];
+  if (!node) return [];
   
-  if(nodeId.nodeId == '-1') return (// Первая ветка
-    <div className=''>
-      {node.childrens.map((childId, key) =>
-        <CreateBranch nodeId={childId} key={key}/>
-      )}
-    </div>
-  )
-
-  return(
-  <div className={`tree-node ${node.active || node.isCreating ? '' : 'disabled'}`}>
-    <div className="nodeMain" onClick={()=>handletoggleExpandNode(node)}>
-      <div className="nodeText"> 
-        <div>
-          {node.isExpanded? "−" : "+"}
-        </div>
-        <div>{node.name}</div>
-        <Buttons node={node}/>
-      </div>
-      <div className="nodePrice">
-        {/* {node.price} */}
-        {node.isCreating?'':
-          <input 
-            type='number' 
-            id={'node'+node.id+'price'} 
-            defaultValue={node.price} 
-            onChange={e => { handlerPriceEdit(e, node); }}
-            onClick={e => e.stopPropagation()}
-          />
-        }
-      </div>
-    </div>
-
-    <NodeInfo node={node}/>
-
-    <div className="nodeChilds">
-      {node.childrens.map((childId, key) =>
-        <CreateBranch nodeId={childId} key={key}/>
-      )}
-    </div>
+  let orderIds = [nodeId];
   
-
-  </div>)
+  if (node.isExpanded) {
+    node.childrens.forEach(childId => {
+      orderIds = orderIds.concat(createNodesOrderToShow(childId));
+    });
+  }
+  
+  return orderIds;
 }
-export default function TreeWatcher() {
+
+function CreateTable() {
+  let nodesInOrderToShow = createNodesOrderToShow('-1');
+  console.log(nodesInOrderToShow);
+  nodesInOrderToShow.shift();
+  
+  return ( <div>
+    {isRelocation?
+      <div className='interface'>
+        <style>{'.tree-node > .nodeInfo:hover { background: #21c7c7; }'}</style> {/*Стиль для выбираемых для relocate узлов*/}
+        <button className={`interfaceBtn ${isRelocation?'':'disabled'}`} onClick={()=>handleCancelRelocate()} > <img src={ Icons.getLink('Del') } alt="Cancel relocation" /> </button>
+      </div>
+      :
+      <div className='interface'>
+        <button className={`interfaceBtn ${isRelocation?'disabled':''}`} onClick={()=>handleUndo()} disabled={!(actionsHistory?.length>0) }> <img src={ Icons.getLink('Undo') } alt="Undo" />  </button>
+        <button className={`interfaceBtn ${isRelocation?'disabled':''}`} onClick={()=>handleRedo()} disabled={!(undoHistory?.length>0) }> <img src={ Icons.getLink('Redo') } alt="Redo" /> </button>
+
+        {/* autosave?'':
+          <button className='interfaceBtn' onClick={()=>handleSaveAll()} disabled={isRelocation}> <img src={ Icons.getLink('Save') } alt="Save" />  </button>
+        */}
+      </div>
+    }
+    <table className="tree-table">
+      <thead>
+        <tr className='tableCaptions'>
+          <th></th>
+          <th>Наименование</th>
+          <th>Кол-во</th>
+          <th>Цена</th>
+          <th>(Фикс)</th>
+          <th>Сумма</th>
+          <th>Ед.Изм.</th>
+          <th>Примечание</th>
+          <th>Категория</th>
+          <th>Деталь</th>
+        </tr>
+      </thead>
+      <tbody>
+        {nodesInOrderToShow.map((nodeId) => {
+          const node = ROOT.nodes[nodeId];
+          if (!node) return null;
+
+          function EditingElement(atrObj) {
+            let atr = atrObj.atr;
+            
+            return node.isEditing || node.isCreating?         
+              <input type='text' id={'node'+node.id+atr} defaultValue={node['editing'+atr]} onChange={e => node['editing'+atr] = e.target.value} />  :  node[atr] 
+          }
+
+          return (
+            <tr key={nodeId} className={`tree-row ${node.active || node.isCreating ? '' : 'disabled'}`}>
+
+              <td onClick={() => handletoggleExpandNode(node)}>
+                {node.childrens?.length > 0 ? (node.isExpanded ? "−" : "+") : ""}
+              </td>
+
+              <td>
+                <div className="node-name">
+                  { node.ItemUnitId? node.name
+                    :  
+                    <EditingElement atr={'name'}/>  
+                  }
+                  <Buttons node={node} />
+                </div>
+              </td>
+
+              <td><EditingElement atr={'amount'}/></td>
+
+              <td>
+                {node.isCreating ? '' : 
+                <input 
+                  type='number' 
+                  id={'node'+node.id+'price'} 
+                  defaultValue={node.price} 
+                  onChange={e => handlerPriceEdit(e, node)}
+                  onClick={e => e.stopPropagation()}
+                  disabled = {node.ItemUnitId?true:false}
+                />
+              }
+              </td>
+
+              <td>
+                <input type='checkbox' id={'node'+node.id+'isPriceFixed'} disabled = {node.ItemUnitId?true:false} checked={node.isPriceFixed} onChange={e=>handlerPriceFixToggle(e,node)}/>
+              </td>
+              <td>{(node.price * node.amount).toFixed(2)}</td>
+              <td>{node.unit || 'Ед.Изм.'}</td>
+              <td><EditingElement atr={'description'}/></td>
+              <td>
+                <div className='select-list'>
+                  <PopupTableSelect 
+                    data={Dictionaries.ItemGroups}
+                    value={node.itemGroupId}
+                    onChange={ (el)=>{
+                        handlerChoseItemUnit(el, node, 'itemGroupId');
+                      }}
+                    placeholder={ Dictionaries.ItemGroups[node.itemGroupId]?.name || " - " }>
+                  </PopupTableSelect>
+                  {node.itemGroupId?
+                    <div className='select-cross' onClick={()=>handlerCleanItemUnit(node,'itemGroupId')}> <img src={ Icons.getLink('Del') } alt="X" /> </div>
+                  :''}
+                </div>
+              </td>
+              <td>
+                <div className='select-list'>
+                  <PopupTableSelect 
+                    data={Dictionaries.filterUnit(node.itemGroupId)}
+                    value={node.ItemUnitId}
+                    onChange={ (el)=>{
+                      handlerChoseItemUnit(el, node, 'ItemUnitId');
+                    }}
+                    placeholder={ Dictionaries.ItemUnit[node.ItemUnitId]?.name || " - " }>
+                  </PopupTableSelect>
+                  {node.ItemUnitId?
+                    <div className='select-cross' onClick={()=>handlerCleanItemUnit(node,'ItemUnitId')}> <img src={ Icons.getLink('Del') } alt="X" /> </div>
+                  :''}
+                  </div>
+                </td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
+  </div>
+  );
+}
+
+export default function TreeWatcher({ body, stateClass }) {
 
   useEffect(() => {
-    require('./TreeWatcher.css');
-    require('./PopupTableSelect.css');
+    // if(!body){
+      require('./TreeWatcher.css');
+      require('./PopupTableSelect.css');
+    // }
     
     const initialize = async () => {
       await loadDictionaries();
@@ -836,10 +865,9 @@ export default function TreeWatcher() {
     initialize();
   }, []);
 
-
   return (
     <UIWindow>
-      <CreateBranch nodeId={'-1'}/>
+      { body || <CreateTable/> }
     </UIWindow>
   );
 }
