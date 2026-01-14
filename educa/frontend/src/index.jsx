@@ -1,85 +1,52 @@
-import React, { StrictMode } from 'react';
+// index.jsx
+import React, { StrictMode, useState } from 'react';
+import ReactDOM from 'react-dom/client';
+import { CookiesProvider } from 'react-cookie';
 
-// модули
-  import ReactDOM from 'react-dom/client';
-  import { CookiesProvider } from 'react-cookie';
-  //redux
-  import { Provider } from 'react-redux';
-  import { configureStore, createSlice } from '@reduxjs/toolkit';
-  import { createStore, applyMiddleware } from 'redux';
-  import { thunk } from 'redux-thunk';  
-// страницы
-  import Api_react   from './api_or_react_chat/App.jsx';
-  import Chats       from './chats/chats.jsx';
-  import Auth        from './auth/auth.jsx';
-  import TreeWatcher from './TreeWatcher/TreeWatcher.jsx';
-  import MainPage    from './mainPage/mainPage.jsx';
-  import TableEditor    from './TreeWatcher/TableEditor.jsx';
+// Страницы
+import TreeWatcher from './TreeWatcher/TreeWatcher.jsx';
+import MainPage from './mainPage/mainPage.jsx';
+import TableEditor from './TreeWatcher/TableEditor.jsx';
 
-const state = new class {
-  constructor() {
-    this._value = '';
+const AppContent = ({ currentState, setCurrentState }) => {
+  switch (currentState) {
+    case 'TreeWatcher':
+      return <TreeWatcher setCurrentState={setCurrentState} />;
+    case 'ItemGroup':
+      return (
+        <TreeWatcher
+          setCurrentState={setCurrentState}
+          body={<TableEditor tableType="ItemGroup" />}
+        />
+      );
+    case 'ItemUnit':
+      return (
+        <TreeWatcher
+          setCurrentState={setCurrentState}
+          body={<TableEditor tableType="ItemUnit" />}
+        />
+      );
+    case 'MeasureUnit':
+      return (
+        <TreeWatcher
+          setCurrentState={setCurrentState}
+          body={<TableEditor tableType="MeasureUnit" />}
+        />
+      );
+    default:
+    return <MainPage setCurrentState={setCurrentState} />;
   }
-  get value() {
-    return this._value;
-  }
-  set value(value) {
-    this._value = value;
-  }
-  setValue = function(value) {
-    this._value = value;
-    removeStyleTags();
-    mainUpdate();
-  }
-}();
+};
 
-// Создаем slice (редьюсер + экшены)
-const counterSlice = createSlice({
-  name: 'state',
-  initialState: { value: '' },
-  reducers: {
-    set: (state, value) => {
-      removeStyleTags();
-      state.value = value.payload;
-    },
-    mainUpdate: (state, value)=>{
-      root.render(
-        <Provider store={store}>
-        <CookiesProvider defaultSetOptions={{ path: '/' }}>
-        <StrictMode>
-          {stateChoser(state.value)}
-        </StrictMode>
-        </CookiesProvider>
-        </Provider>
-      )
-    }
-  }
-});
+const App = () => {
+  const [currentState, setCurrentState] = useState('main');
 
-export const { set, mainUpdate } = counterSlice.actions;
-export const store = createStore(counterSlice.reducer, applyMiddleware(thunk));
+  return (
+    <CookiesProvider defaultSetOptions={{ path: '/' }}>
+      <AppContent currentState={currentState} setCurrentState={setCurrentState} />
+    </CookiesProvider>
+  );
+};
 
-
-const root = ReactDOM.createRoot(document.getElementById("root"));
-const stateChoser = function(state) {
-  console.log(state);
-  
-  switch (state) {
-    case 'auth':        return <Auth stateClass={state} />;
-    case 'mqtt':        return <Api_react />;
-    case 'chats':       return <Chats />;
-    case 'TreeWatcher': return <TreeWatcher stateClass={state} />;
-    case 'ItemGroups':  return <TreeWatcher stateClass={state} body={<TableEditor tableType="ItemGroups" />} />;
-    case 'ItemUnit':    return <TreeWatcher stateClass={state} body={<TableEditor tableType="ItemUnit" />} />;
-    default:            return <MainPage    stateClass={state} />;
-  }
-}
-
-function removeStyleTags(){
-  const styleTags = document.querySelectorAll('style');
-  styleTags.forEach(tag => {
-    tag.parentNode.removeChild(tag);
-  });
-}
-
-store.dispatch(mainUpdate())
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);

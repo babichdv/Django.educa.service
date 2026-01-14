@@ -1,23 +1,18 @@
 from django.db import models
 
 
-class ItemGroups(models.Model):
+class ItemGroup(models.Model):
     id            = models.AutoField(primary_key=True)
     name          = models.TextField(max_length=300, null=True)
-    orderValue    = models.IntegerField(max_length=10, null=True)
+    orderValue    = models.IntegerField(null=True)
 
 class ItemUnit(models.Model):
     id            = models.AutoField(primary_key=True)
     name          = models.TextField(max_length=300, null=True)
-    price         = models.IntegerField(max_length=10, null=True)
-    measureUnit   = models.IntegerField(max_length=10, null=True)
-    dependence    = models.ForeignKey(ItemGroups,
-                                      verbose_name='category',
-                                      related_name='units',
-                                      null=True, blank=True,
-                                      on_delete=models.CASCADE)
-    
-    orderValue    = models.IntegerField(max_length=10, null=True)
+    price         = models.IntegerField(null=True)
+    measureUnit   = models.IntegerField(null=True)
+    ItemGroup     = models.IntegerField(null=True)
+    orderValue    = models.IntegerField(null=True)
 
 class NodesEl(models.Model):
     id            = models.AutoField(primary_key=True)
@@ -27,7 +22,7 @@ class NodesEl(models.Model):
     isPriceFixed  = models.BooleanField(null=True)
     # chosenItem    = models.IntegerField(max_length=10, null=True)
 
-    itemGroupId   = models.ForeignKey(ItemGroups,
+    itemGroupId   = models.ForeignKey(ItemGroup,
                                       verbose_name='ItemGroupId',
                                       related_name='items',
                                       null=True, blank=True,

@@ -1,5 +1,5 @@
 export const TABLES_CONFIG = {
-  ItemGroups: {
+  ItemGroup: {
     title: 'Группы товаров',
     apiEndpoint: 'item-groups',
     fields: {
@@ -36,10 +36,10 @@ export const TABLES_CONFIG = {
         relation: 'measure-units',
         required: true
       },
-      dependence: {
+      ItemGroup: {
         label: 'Группа товаров',
         type: 'select',
-        relation: 'itemgroups',
+        relation: 'item-groups',
         required: true
       },
       orderValue: {
@@ -48,6 +48,18 @@ export const TABLES_CONFIG = {
         required: true
       }
     },
-    columns: ['name', 'price', 'measureUnit', 'dependence', 'orderValue']
+    columns: ['name', 'price', 'measureUnit', 'ItemGroup', 'orderValue']
+  },
+  MeasureUnit: {
+    title: 'Единицы измерения',
+    apiEndpoint: 'measure-units',
+    fields: {
+      name: {
+        label: 'Название',
+        type: 'text',
+        required: true
+      }
+    },
+    columns: ['name']
   }
 };

@@ -34,15 +34,10 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
-    'channels',
-    'chat',
     'treeWatcher',
     'corsheaders',
     'rest_framework',
-    'api',
     'frontend',
-    'authentication',
-    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -50,7 +45,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 ]
 
-AUTH_USER_MODEL = 'authentication.User'
 
 from dotenv import load_dotenv
 import os
